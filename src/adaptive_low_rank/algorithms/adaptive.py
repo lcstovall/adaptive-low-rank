@@ -1,8 +1,9 @@
 import numpy as np
 import time
+from adaptive_low_rank.results import AlgorithmResult
 
-def _adaptive_sampling_algorithm(
-    X, n_clusters, random_state
+def select_rows(
+    X, k, random_state=None
 ):
     """Adaptive low-rank matrix approximation by sampling with residual-based weights.
 
@@ -15,7 +16,7 @@ def _adaptive_sampling_algorithm(
     X : {ndarray, sparse matrix} of shape (n_samples, n_features)
         Input data matrix.
 
-    n_clusters : int
+    k : int
         Number of centers to choose.
 
     random_state : RandomState instance
@@ -23,10 +24,10 @@ def _adaptive_sampling_algorithm(
 
     Returns
     -------
-    centers : ndarray of shape (n_clusters, n_features)
+    centers : ndarray of shape (k, n_features)
         The selected centers from X.
 
-    indices : ndarray of shape (n_clusters,)
+    indices : ndarray of shape (k,)
         The indices of the chosen centers in X.
 
     residuals : list of float
@@ -35,9 +36,11 @@ def _adaptive_sampling_algorithm(
     times : list of float
         Elapsed time at each selection step.
     """
+    random_state = np.random.default_rng(random_state)
+
     # Initialize matrix of Residuals (R) and array of selected indices
     R = X.copy()
-    indices = np.full(n_clusters, -1, dtype=int)
+    indices = np.full(k, -1, dtype=int)
 
     # Initialize residuals
     residuals = []
@@ -46,8 +49,8 @@ def _adaptive_sampling_algorithm(
     times = []
     start = time.perf_counter()
 
-    # Pick n_clusters points
-    for c in range(0, n_clusters):
+    # Pick k points
+    for c in range(0, k):
         
         # Choose row by sampling with probability proportional to the squared row norms of R
         row_norms_sq = np.sum(R**2, axis=1)
@@ -72,4 +75,10 @@ def _adaptive_sampling_algorithm(
 
     # Find the lowrank matrix approximation of X
     centers = X[indices]
-    return centers, indices, residuals, times
+    return AlgorithmResult(
+    rows=centers,
+    indices=indices,
+    residuals=np.asarray(residuals),
+    runtimes=np.asarray(times),
+    residual_matrix=R,
+)
