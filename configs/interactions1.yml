@@ -1,4 +1,5 @@
 dataset: interactions
+name: interactions_residual
 
 algorithms:
 

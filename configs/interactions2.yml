@@ -1,0 +1,14 @@
+dataset: interactions
+name: interactions_n_candidates
+
+algorithms:
+
+  batch_max:
+    k: [120]
+    random_state: [0,1,2,3,4,5,6,7,8,9]
+    n_candidates: [10,15,20,25,30]
+
+  greedy_pp:
+    k: [120]
+    random_state: [0,1,2,3,4,5,6,7,8,9]
+    n_candidates: [10,15,20,25,30]
