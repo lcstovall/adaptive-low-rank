@@ -2,6 +2,7 @@ from pathlib import Path
 import pickle
 import shutil
 import pandas as pd
+import numpy as np
 
 
 def save_results(results, config_path, output_dir):
@@ -27,6 +28,13 @@ def save_results(results, config_path, output_dir):
 
     shutil.copy2(config_path, output_dir / "config.yml")
 
+    save_alpha = any(
+        hasattr(run["result"], "alphas")
+        and run["result"].alphas is not None
+        and not np.all(np.isnan(run["result"].alphas))
+        for run in results
+    )
+
     rows = []
 
     for run in results:
@@ -38,6 +46,9 @@ def save_results(results, config_path, output_dir):
             "final_residual": result.residuals[-1],
             "runtime": result.runtimes[-1],
         }
+
+        if save_alpha:
+            row["final_alpha"] = result.alphas[-1]
 
         rows.append(row)
 

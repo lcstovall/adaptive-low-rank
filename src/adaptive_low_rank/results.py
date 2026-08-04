@@ -1,10 +1,10 @@
 from dataclasses import dataclass
+from typing import Optional
 import numpy as np
 
 @dataclass
 class AlgorithmResult:
-    rows: np.ndarray
     indices: np.ndarray
     residuals: np.ndarray
     runtimes: np.ndarray
-    residual_matrix: np.ndarray
+    alphas: list[Optional[float]]
