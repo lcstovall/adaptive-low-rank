@@ -31,7 +31,6 @@ def plot_residuals(results, output_dir):
             run["algorithm"],
             tuple(sorted(params.items())),
         )
-
         grouped[key].append(run["result"])
 
     # Assign one base color per algorithm
@@ -70,13 +69,12 @@ def plot_residuals(results, output_dir):
         t = 0.15 + 0.55 * i / max(n - 1, 1)
         color = (1 - t) * base + t * np.ones(3)
 
-        # Legend label
+        # Plot
         params = dict(params)
         label = algorithm.replace("_", " ").title()
         extras = [f"{k}={v}" for k, v in params.items()]
         if extras:
             label += " (" + ", ".join(extras) + ")"
-
         if len(runs) == 1:
             ax.plot(
                 x,
@@ -84,7 +82,6 @@ def plot_residuals(results, output_dir):
                 color=color,
                 label=label,
             )
-
         else:
             std = residuals.std(axis=0)
             ax.plot(
@@ -119,12 +116,6 @@ def plot_residuals(results, output_dir):
 
     plt.close(fig)
 
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-import numpy as np
-from collections import defaultdict
-from pathlib import Path
-
 
 def plot_alphas(results, output_dir):
     """
@@ -148,18 +139,14 @@ def plot_alphas(results, output_dir):
     for run in results:
         if run["result"].alphas is None:
             continue
-
         if np.all(np.isnan(run["result"].alphas)):
             continue
-
         params = run["parameters"].copy()
         params.pop("random_state", None)
-
         key = (
             run["algorithm"],
             tuple(sorted(params.items())),
         )
-
         grouped[key].append(run["result"])
 
     if not grouped:
@@ -197,12 +184,12 @@ def plot_alphas(results, output_dir):
         t = 0.15 + 0.55 * i / max(n - 1, 1)
         color = (1 - t) * base + t * np.ones(3)
 
+        # Plot
         params = dict(params)
         label = algorithm.replace("_", " ").title()
         extras = [f"{k}={v}" for k, v in params.items()]
         if extras:
             label += " (" + ", ".join(extras) + ")"
-
         if len(runs) == 1:
             ax.plot(
                 x,
@@ -212,14 +199,12 @@ def plot_alphas(results, output_dir):
             )
         else:
             std = np.nanstd(alphas, axis=0)
-
             ax.plot(
                 x,
                 mean,
                 color=color,
                 label=label,
             )
-
             ax.fill_between(
                 x,
                 mean - std,
@@ -231,14 +216,12 @@ def plot_alphas(results, output_dir):
     ax.set_xlabel("Selected Rows")
     ax.set_ylabel(r"$\alpha$")
     ax.legend()
-
     fig.tight_layout()
 
     fig.savefig(
         output_dir / "alphas.pdf",
         bbox_inches="tight",
     )
-
     fig.savefig(
         output_dir / "alphas.png",
         dpi=300,

@@ -22,6 +22,7 @@ class LowRankAlgorithm(ABC):
         """Run the algorithm and return selected column indices,
         residual history, runtime history, and (when applicable)
         alpha values."""            
+
         R = self._as_matrix(X.T.copy())
         indices = np.full(n_clusters, -1, dtype=int)
         residuals: list[float] = []
@@ -83,6 +84,7 @@ class LowRankAlgorithm(ABC):
         V: np.ndarray,
         n_candidates: int,
     ) -> Optional[float]:
+        """Compute the alpha value for a given iteration"""
         if V is None:
             return None
 

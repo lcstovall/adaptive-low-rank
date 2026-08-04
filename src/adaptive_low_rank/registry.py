@@ -6,6 +6,7 @@ from .algorithms import (
     Random,
 )
 
+
 ALGORITHMS = {
     "adaptive": Adaptive,
     "batch_max": BatchMax,
