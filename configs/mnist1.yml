@@ -1,0 +1,25 @@
+dataset: mnist
+name: mnist_residual
+
+algorithms:
+
+  adaptive:
+    k: [120]
+    random_state: [0,1,2,3,4,5,6,7,8,9]
+
+  greedy:
+    k: [120]
+
+  random:
+    k: [120]
+    random_state: [0,1,2,3,4,5,6,7,8,9]
+
+  batch_max:
+    k: [120]
+    random_state: [0,1,2,3,4,5,6,7,8,9]
+    n_candidates: [10]
+
+  greedy_pp:
+    k: [120]
+    random_state: [0,1,2,3,4,5,6,7,8,9]
+    n_candidates: [10]
