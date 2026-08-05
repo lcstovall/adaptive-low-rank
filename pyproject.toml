@@ -19,6 +19,7 @@ dependencies = [
     "matplotlib>=3.5",
     "pandas>=1.5",
     "PyYAML>=6.0",
+    "scikit-learn",
 ]
 
 [project.urls]
