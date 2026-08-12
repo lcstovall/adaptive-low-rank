@@ -20,6 +20,7 @@ dependencies = [
     "pandas>=1.5",
     "PyYAML>=6.0",
     "scikit-learn",
+    "pillow",
 ]
 
 [project.urls]

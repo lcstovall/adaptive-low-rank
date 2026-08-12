@@ -35,6 +35,13 @@ htmlcov/
 results/
 figures/
 
+# Datasets
+data/coil-20-proc/
+data/rating.csv
+data/YearPredictionMSD.txt
+
+
+
 # Optional: generated data files
 # *.pkl
 # *.pdf
