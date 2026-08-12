@@ -23,7 +23,7 @@ def plot_residuals(results, output_dir):
 
     grouped = defaultdict(list)
 
-    # Group runs that differ only by random_state
+    # Group runs
     for run in results:
         params = run["parameters"].copy()
         params.pop("random_state", None)
@@ -31,7 +31,7 @@ def plot_residuals(results, output_dir):
             run["algorithm"],
             tuple(sorted(params.items())),
         )
-        grouped[key].append(run["result"])
+        grouped[key].append({"result": run["result"], "init_res": run["init_res"]})
 
     # Assign one base color per algorithm
     color_cycle = plt.rcParams["axes.prop_cycle"].by_key()["color"]
@@ -52,10 +52,12 @@ def plot_residuals(results, output_dir):
     fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
 
     for (algorithm, params), runs in grouped.items():
-        residuals = np.array([r.residuals for r in runs])
+        residuals = np.array([run["result"].residuals for run in runs])
+        init_res = np.array([run["init_res"] for run in runs])
 
-        # Normalize every trial
-        residuals = residuals / residuals[:, [0]]
+        # Normalize by initial residual
+        residuals = residuals / init_res[:, None]
+
         mean = residuals.mean(axis=0)
         x = np.arange(1, len(mean) + 1)
 
@@ -99,7 +101,7 @@ def plot_residuals(results, output_dir):
             )
 
     ax.set_yscale("log")
-    ax.set_xlabel("Selected Rows")
+    ax.set_xlabel("Selected Columns")
     ax.set_ylabel("Normalized Residual")
     ax.legend()
     fig.tight_layout()

@@ -1,6 +1,6 @@
 from copy import deepcopy
 from adaptive_low_rank.registry import ALGORITHMS
-
+from numpy.linalg import norm
 
 def benchmark(X, runs, V=None):
     """
@@ -22,6 +22,7 @@ def benchmark(X, runs, V=None):
         Benchmark results.
     """
     results = []
+    X_fro_norm2 = norm(X, ord='fro')**2.
 
     for run in runs:
         params = deepcopy(run)
@@ -43,6 +44,7 @@ def benchmark(X, runs, V=None):
             {
                 "algorithm": algorithm_name,
                 "parameters": {"k": k, **params},
+                "init_res": X_fro_norm2,
                 "result": result,
             }
         )
