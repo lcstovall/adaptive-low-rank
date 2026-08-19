@@ -14,7 +14,7 @@ class LowRankAlgorithm(ABC):
     def select_columns(
         self,
         X: np.ndarray,
-        n_clusters: int,
+        k: int,
         random_state: Optional[np.random.RandomState | int] = None,
         n_candidates: Optional[int] = None,
         V: Optional[np.ndarray] = None,
@@ -24,7 +24,7 @@ class LowRankAlgorithm(ABC):
         # Work directly with X.
         R = self._as_matrix(X.copy())
 
-        indices = np.full(n_clusters, -1, dtype=int)
+        indices = np.full(k, -1, dtype=int)
         residuals: list[float] = []
         alphas: list[Optional[float]] = []
         times: list[float] = []
@@ -39,10 +39,10 @@ class LowRankAlgorithm(ABC):
         else:
             rng = random_state
 
-        for c in range(n_clusters):
+        for c in range(k):
             idx, alpha = self.select_index(
                 R,
-                n_clusters,
+                k,
                 rng,
                 n_candidates,
                 V,
@@ -68,7 +68,7 @@ class LowRankAlgorithm(ABC):
     def select_index(
         self,
         R: np.ndarray,
-        n_clusters: int,
+        k: int,
         random_state: np.random.RandomState,
         n_candidates: Optional[int] = None,
         V: Optional[np.ndarray] = None,
@@ -149,7 +149,7 @@ class Adaptive(LowRankAlgorithm):
     def select_index(
         self,
         R: np.ndarray,
-        n_clusters: int,
+        k: int,
         random_state: np.random.RandomState,
         n_candidates: Optional[int] = None,
         V: Optional[np.ndarray] = None,
@@ -183,7 +183,7 @@ class BatchMax(LowRankAlgorithm):
     def select_index(
         self,
         R: np.ndarray,
-        n_clusters: int,
+        k: int,
         random_state: np.random.RandomState,
         n_candidates: Optional[int] = None,
         V: Optional[np.ndarray] = None,
@@ -194,7 +194,7 @@ class BatchMax(LowRankAlgorithm):
         if n_candidates is None:
             n_candidates = max(
                 1,
-                2 + int(np.log(n_clusters)),
+                2 + int(np.log(k)),
             )
 
         column_norms_sq = np.sum(R**2, axis=0)
@@ -254,7 +254,6 @@ class BatchMax(LowRankAlgorithm):
 
         return int(candidate_ids[best_idx]), alpha
 
-
 class Greedy(LowRankAlgorithm):
     """Greedily select the column that best reduces residual energy."""
 
@@ -263,27 +262,36 @@ class Greedy(LowRankAlgorithm):
     def select_index(
         self,
         R: np.ndarray,
-        n_clusters: int,
+        k: int,
         random_state: np.random.RandomState,
         n_candidates: Optional[int] = None,
         V: Optional[np.ndarray] = None,
     ) -> tuple[int, Optional[float]]:
 
-        RR = R.T @ R
+        # R has shape (features, columns)
+        # R @ R.T has shape (features, features)
+        RR = R @ R.T
 
-        numerators = np.linalg.norm(
-            RR,
+        # One score for each column.
+        # For column r_j:
+        # ||R.T r_j||^2 = r_j.T (R R.T) r_j
+        numerators = np.sum(
+            R * (RR @ R),
             axis=0,
-        ) ** 2
+        )
 
-        denominators = np.linalg.norm(
-            R,
+        # One denominator for each column.
+        denominators = np.sum(
+            R**2,
             axis=0,
-        ) ** 2
-
-        mask = ~np.isclose(denominators, 0.0)
+        )
 
         scores = np.zeros_like(numerators)
+
+        mask = ~np.isclose(
+            denominators,
+            0.0,
+        )
 
         scores[mask] = (
             numerators[mask]
@@ -301,7 +309,7 @@ class GreedyPP(LowRankAlgorithm):
     def select_index(
         self,
         R: np.ndarray,
-        n_clusters: int,
+        k: int,
         random_state: np.random.RandomState,
         n_candidates: Optional[int] = None,
         V: Optional[np.ndarray] = None,
@@ -312,7 +320,7 @@ class GreedyPP(LowRankAlgorithm):
         if n_candidates is None:
             n_candidates = max(
                 1,
-                2 + int(np.log(n_clusters)),
+                2 + int(np.log(k)),
             )
 
         candidate_ids = random_state.choice(
@@ -355,7 +363,7 @@ class Random(LowRankAlgorithm):
     def select_index(
         self,
         R: np.ndarray,
-        n_clusters: int,
+        k: int,
         random_state: np.random.RandomState,
         n_candidates: Optional[int] = None,
         V: Optional[np.ndarray] = None,

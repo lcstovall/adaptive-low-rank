@@ -4,6 +4,7 @@ from sklearn.datasets import fetch_openml
 import numpy as np
 import pandas as pd
 from PIL import Image
+import graphlearning as gl
 
 
 def load_dataset(name):
@@ -16,33 +17,12 @@ def load_dataset(name):
     elif name == "mnist":
         mnist = fetch_openml('mnist_784', as_frame=False, parser='auto')
         X = mnist['data'].astype(np.float64)
-        return X
+        return X.T
 
     elif name == "yearprediction":
         data = np.loadtxt(root / "data" / "YearPredictionMSD.txt", delimiter=",")
-        return data[:, 1:]
-
-    elif name == "movielens":
-        ratings = pd.read_csv(root / "data" / "rating.csv")
-
-        user_ids = ratings["userId"].unique()
-        movie_ids = ratings["movieId"].unique()
-
-        user_map = {user_id: i for i, user_id in enumerate(user_ids)}
-        movie_map = {movie_id: i for i, movie_id in enumerate(movie_ids)}
-
-        X = np.zeros(
-            (len(user_ids), len(movie_ids)),
-            dtype=float,
-        )
-
-        rows = ratings["userId"].map(user_map).to_numpy()
-        cols = ratings["movieId"].map(movie_map).to_numpy()
-
-        X[rows, cols] = ratings["rating"].to_numpy()
-
-        return X
-
+        return data[:, 1:].T
+    
     elif name == "coil20":
         path = root / "data" / "coil-20-proc"
 
@@ -54,6 +34,10 @@ def load_dataset(name):
         X = np.asarray(images).T
         
         return X
+
+    elif name == "cfar10":
+        data, labels = gl.datasets.load("cifar10", metric="simclr")
+        return data.T
 
     else:
         raise ValueError(f"Unknown dataset '{name}'")

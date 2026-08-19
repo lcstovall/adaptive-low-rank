@@ -21,6 +21,10 @@ dependencies = [
     "PyYAML>=6.0",
     "scikit-learn",
     "pillow",
+    "torch",
+    "torchvision",
+    "transformers>=4.40",
+    "tqdm",
 ]
 
 [project.urls]

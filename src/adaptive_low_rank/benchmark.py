@@ -35,7 +35,7 @@ def benchmark(X, runs, V=None):
 
         result = algorithm.select_columns(
             X,
-            n_clusters=k,
+            k=k,
             V=V,
             **params,
         )

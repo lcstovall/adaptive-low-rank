@@ -6,7 +6,7 @@ from adaptive_low_rank.algorithms import LowRankAlgorithm
 from adaptive_low_rank.benchmark import benchmark
 from adaptive_low_rank.save_results import save_results
 from adaptive_low_rank.run_generator import generate_runs
-from adaptive_low_rank.plotting import plot_residuals, plot_alphas
+from adaptive_low_rank.plotting import *
 
 
 # Load config
@@ -48,7 +48,3 @@ save_results(
     config_path,
     output_dir,
 )
-
-# Plot
-plot_residuals(results, output_dir)
-plot_alphas(results, output_dir)
