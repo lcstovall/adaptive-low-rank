@@ -6,17 +6,21 @@ import numpy as np
 
 
 def save_results(results, config_path, output_dir):
-    """
-    Save benchmark results.
+    """Serialize benchmark results and write a tabular summary.
 
     Parameters
     ----------
     results : list
-        Output of benchmark().
+        Output of :func:`benchmark`.
     config_path : Path
-        Path to the YAML config used.
+        Path to the YAML configuration used for the experiment.
     output_dir : Path
-        Directory where results should be saved.
+        Destination directory. It is created when necessary.
+
+    Notes
+    -----
+    The function writes ``results.pkl``, a copy of the configuration as
+    ``config.yml``, and a ``summary.csv`` file.
     """
     output_dir = Path(output_dir)
     config_path = Path(config_path)
@@ -54,8 +58,5 @@ def save_results(results, config_path, output_dir):
 
         rows.append(row)
 
-    pd.DataFrame(rows).to_csv(
-        output_dir / "summary.csv",
-        index=False,
-    )
+    pd.DataFrame(rows).to_csv(output_dir / "summary.csv", index=False)
     output_dir.mkdir(parents=True, exist_ok=True)

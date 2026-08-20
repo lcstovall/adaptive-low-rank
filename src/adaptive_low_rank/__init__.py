@@ -5,14 +5,7 @@ Algorithms and utilities for benchmarking adaptive column subset
 selection methods.
 """
 
-from .algorithms import (
-    LowRankAlgorithm,
-    Adaptive,
-    BatchMax,
-    Greedy,
-    GreedyPP,
-    Random,
-)
+from .algorithms import LowRankAlgorithm, Adaptive, BatchMax, Greedy, GreedyPP, Random
 
 from .benchmark import benchmark
 from .datasets import load_dataset

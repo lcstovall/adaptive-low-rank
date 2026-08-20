@@ -5,7 +5,6 @@ import numpy as np
 from collections import defaultdict
 from pathlib import Path
 
-
 METHOD_MARKERS = {
     "adaptive": "o",
     "batch_max": "s",
@@ -17,19 +16,19 @@ _assigned_markers = dict(METHOD_MARKERS)
 
 
 def _is_batch_max(algorithm):
+    """Return whether an algorithm name identifies batch-max sampling."""
     return algorithm.replace("_", "").lower() == "batchmax"
 
 
 def _marker_for_algorithm(algorithm):
-    """Return the stable marker assigned to an algorithm."""
+    """Return the persistent marker assigned to an algorithm name."""
     if algorithm in _assigned_markers:
         return _assigned_markers[algorithm]
 
     marker_cycle = ["o", "s", "^", "D", "*", "P", "v", "<", ">", "h"]
     known_markers = set(_assigned_markers.values())
     available_markers = [
-        marker for marker in marker_cycle
-        if marker not in known_markers
+        marker for marker in marker_cycle if marker not in known_markers
     ]
     marker = available_markers[0] if available_markers else "o"
     _assigned_markers[algorithm] = marker
@@ -37,7 +36,7 @@ def _marker_for_algorithm(algorithm):
 
 
 def _marker_positions(length, max_markers=20):
-    """Return evenly spaced marker positions along a plotted curve."""
+    """Return approximately evenly spaced marker positions for a curve."""
     spacing = max(int(np.ceil(length / max_markers)), 1)
     return np.arange(0, length, spacing)
 
@@ -64,33 +63,24 @@ def plot_residuals(results, output_dir, name="residuals"):
 
     grouped = defaultdict(list)
 
-    # Group runs
+    # Group repeated runs after removing the random seed from the key.
     for run in results:
         params = run["parameters"].copy()
         params.pop("random_state", None)
-        key = (
-            run["algorithm"],
-            tuple(sorted(params.items())),
-        )
+        key = (run["algorithm"], tuple(sorted(params.items())))
         grouped[key].append({"result": run["result"], "init_res": run["init_res"]})
 
     color_cycle = plt.rcParams["axes.prop_cycle"].by_key()["color"]
     algorithm_names = sorted({alg for alg, _ in grouped.keys()})
     base_colors = {
-        alg: color_cycle[i % len(color_cycle)]
-        for i, alg in enumerate(algorithm_names)
+        alg: color_cycle[i % len(color_cycle)] for i, alg in enumerate(algorithm_names)
     }
 
     algorithm_counts = defaultdict(int)
     for algorithm, _ in grouped.keys():
         algorithm_counts[algorithm] += 1
 
-    grouped = dict(
-        sorted(
-            grouped.items(),
-            key=lambda item: _is_batch_max(item[0][0]),
-        )
-    )
+    grouped = dict(sorted(grouped.items(), key=lambda item: _is_batch_max(item[0][0])))
     algorithm_indices = defaultdict(int)
 
     fig, ax = plt.subplots(figsize=(11, 6), dpi=300)
@@ -99,7 +89,7 @@ def plot_residuals(results, output_dir, name="residuals"):
         residuals = np.array([run["result"].residuals for run in runs])
         init_res = np.array([run["init_res"] for run in runs])
 
-        # Normalize by initial residual
+        # Normalize each residual trajectory by its initial squared norm.
         residuals = residuals / init_res[:, None]
 
         mean = residuals.mean(axis=0)
@@ -110,15 +100,13 @@ def plot_residuals(results, output_dir, name="residuals"):
         i = algorithm_indices[algorithm]
         algorithm_indices[algorithm] += 1
 
-        # Dark -> light shading
+        # Use lighter shades for additional parameter settings.
         t = 0.15 + 0.55 * i / max(n - 1, 1)
         color = (1 - t) * base + t * np.ones(3)
         marker = _marker_for_algorithm(algorithm)
 
-        # Label
         label = algorithm.replace("_", " ").title()
 
-        # Plot
         ax.plot(
             x,
             mean,
@@ -134,76 +122,36 @@ def plot_residuals(results, output_dir, name="residuals"):
         if len(runs) > 1:
             std = residuals.std(axis=0)
 
-            ax.fill_between(
-                x,
-                mean - std,
-                mean + std,
-                color=color,
-                alpha=0.10,
-            )
+            ax.fill_between(x, mean - std, mean + std, color=color, alpha=0.10)
 
     ax.set_yscale("log")
 
     if name != "interactions":
         ymin, ymax = ax.get_ylim()
-        ax.yaxis.set_minor_locator(
-            FixedLocator(
-                np.geomspace(
-                    ymin,
-                    ymax,
-                    6,
-                )
-            )
-        )
-        ax.tick_params(
-            axis="y",
-            which="minor",
-            length=0,
-            labelleft=False,
-        )
+        ax.yaxis.set_minor_locator(FixedLocator(np.geomspace(ymin, ymax, 6)))
+        ax.tick_params(axis="y", which="minor", length=0, labelleft=False)
 
     ax.set_xlabel("k", fontsize=13)
     ax.set_ylabel("Normalized Residual", fontsize=13)
     ax.tick_params(axis="both", labelsize=11)
 
     ax.grid(
-        True,
-        which="minor" if name != "interactions" else "major",
-        axis="y",
-        alpha=0.3,
+        True, which="minor" if name != "interactions" else "major", axis="y", alpha=0.3
     )
 
-    ax.legend(
-        loc="upper left",
-        bbox_to_anchor=(1.02, 1),
-        fontsize=10,
-        frameon=False,
-    )
+    ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=10, frameon=False)
 
-    fig.subplots_adjust(
-        right=0.75,
-        left=0.10,
-        bottom=0.12,
-        top=0.97,
-    )
+    fig.subplots_adjust(right=0.75, left=0.10, bottom=0.12, top=0.97)
 
-    fig.savefig(
-        output_dir / f"{name}_residuals.png",
-        dpi=300,
-        bbox_inches="tight",
-    )
+    fig.savefig(output_dir / f"{name}_residuals.png", dpi=300, bbox_inches="tight")
 
     plt.show()
 
 
 def plot_runtime_scaling(
-    results,
-    output_dir,
-    fixed_d=None,
-    fixed_n=None,
-    name="runtime_scaling",
+    results, output_dir, fixed_d=None, fixed_n=None, name="runtime_scaling"
 ):
-    """Plot mean runtime with one standard deviation across repeats.
+    """Plot mean runtime across repeated benchmark runs.
 
     Parameters
     ----------
@@ -222,8 +170,6 @@ def plot_runtime_scaling(
     name : str, default="runtime_scaling"
         Filename stem for the saved figures.
 
-    show : bool, default=False
-        Display the figure instead of closing it after saving.
     """
 
     if (fixed_d is None) == (fixed_n is None):
@@ -254,20 +200,14 @@ def plot_runtime_scaling(
     fig, ax = plt.subplots(figsize=(11, 6), dpi=300)
 
     algorithm_order = sorted(
-        range(len(algorithms)),
-        key=lambda index: _is_batch_max(algorithms[index]),
+        range(len(algorithms)), key=lambda index: _is_batch_max(algorithms[index])
     )
 
     for algorithm_index in algorithm_order:
         algorithm = algorithms[algorithm_index]
         mean = means[algorithm_index]
 
-        ax.plot(
-            x,
-            mean,
-            marker="o",
-            label=algorithm,
-        )
+        ax.plot(x, mean, marker="o", label=algorithm)
 
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -276,34 +216,16 @@ def plot_runtime_scaling(
     ax.set_title(title)
     ax.tick_params(axis="both", labelsize=11)
 
-    ax.grid(
-        True,
-        which="major",
-        axis="y",
-        alpha=0.3,
-    )
+    ax.grid(True, which="major", axis="y", alpha=0.3)
 
-    ax.legend(
-        loc="upper left",
-        bbox_to_anchor=(1.02, 1),
-        fontsize=10,
-        frameon=False,
-    )
+    ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=10, frameon=False)
 
-    fig.subplots_adjust(
-        right=0.75,
-        left=0.10,
-        bottom=0.12,
-        top=0.92,
-    )
+    fig.subplots_adjust(right=0.75, left=0.10, bottom=0.12, top=0.92)
 
-    fig.savefig(
-        output_dir / f"{name}.png",
-        dpi=300,
-        bbox_inches="tight",
-    )
+    fig.savefig(output_dir / f"{name}.png", dpi=300, bbox_inches="tight")
 
     plt.show()
+
 
 def plot_alphas(results, output_dir, name="alphas"):
     """
@@ -340,22 +262,16 @@ def plot_alphas(results, output_dir, name="alphas"):
         params = run["parameters"].copy()
         params.pop("random_state", None)
 
-        key = (
-            run["algorithm"],
-            tuple(sorted(params.items())),
-        )
+        key = (run["algorithm"], tuple(sorted(params.items())))
 
         grouped[key].append(run["result"])
 
     if not grouped:
         return
 
-    # Assign one base color per algorithm
     color_cycle = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
-    algorithm_names = sorted(
-        {algorithm for algorithm, _ in grouped.keys()}
-    )
+    algorithm_names = sorted({algorithm for algorithm, _ in grouped.keys()})
 
     base_colors = {
         algorithm: color_cycle[i % len(color_cycle)]
@@ -367,7 +283,7 @@ def plot_alphas(results, output_dir, name="alphas"):
     for algorithm, _ in grouped.keys():
         algorithm_counts[algorithm] += 1
 
-    # Sort groups by algorithm and then by n_candidates
+    # Sort groups by algorithm and then by the candidate count.
     def sort_key(item):
         (algorithm, params), _ = item
 
@@ -375,66 +291,43 @@ def plot_alphas(results, output_dir, name="alphas"):
 
         n_candidates = params_dict.get("n_candidates", 0)
 
-        return (
-            algorithm,
-            n_candidates,
-        )
+        return (algorithm, n_candidates)
 
     grouped = dict(sorted(grouped.items(), key=sort_key))
 
-    # Track which shade is being used for each algorithm
+    # Track the shade used for each parameter setting.
     algorithm_indices = defaultdict(int)
 
-    # Create figure
-    fig, ax = plt.subplots(
-        figsize=(10, 6),
-        dpi=300,
-    )
+    fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
 
-    # Plot each algorithm / n_candidates combination
     for (algorithm, params), runs in grouped.items():
 
         params = dict(params)
 
-        alphas = np.array(
-            [r.alphas for r in runs],
-            dtype=float,
-        )
+        alphas = np.array([r.alphas for r in runs], dtype=float)
 
         mean = np.nanmean(alphas, axis=0)
         std = np.nanstd(alphas, axis=0)
         x = np.arange(1, len(mean) + 1)
 
-        base = np.array(
-            mcolors.to_rgb(
-                base_colors[algorithm]
-            )
-        )
+        base = np.array(mcolors.to_rgb(base_colors[algorithm]))
 
         n = algorithm_counts[algorithm]
         i = algorithm_indices[algorithm]
         algorithm_indices[algorithm] += 1
 
-        # Dark -> light shading
+        # Use lighter shades for additional candidate-count settings.
         t = 0.15 + 0.55 * i / max(n - 1, 1)
 
-        color = (
-            (1 - t) * base
-            + t * np.ones(3)
-        )
+        color = (1 - t) * base + t * np.ones(3)
 
-        # Marker
         marker = _marker_for_algorithm(algorithm)
 
-        # Label
         label = algorithm.replace("_", " ").title()
 
         if "n_candidates" in params:
-            label += (
-                f" ($n_{{candidates}}={params['n_candidates']}$)"
-            )
+            label += f" ($n_{{candidates}}={params['n_candidates']}$)"
 
-        # Plot
         ax.plot(
             x,
             mean,
@@ -446,49 +339,19 @@ def plot_alphas(results, output_dir, name="alphas"):
         )
 
         if len(runs) > 1:
-            ax.fill_between(
-                x,
-                mean - std,
-                mean + std,
-                color=color,
-                alpha=0.2,
-            )
-    
-    # Formatting
+            ax.fill_between(x, mean - std, mean + std, color=color, alpha=0.2)
+
     ax.set_xlabel("Selected Rows")
     ax.set_ylabel(r"$\alpha$")
 
-    ax.tick_params(
-        axis="both",
-        labelsize=11,
-    )
+    ax.tick_params(axis="both", labelsize=11)
 
-    ax.grid(
-        True,
-        which="major",
-        axis="y",
-        alpha=0.3,
-    )
+    ax.grid(True, which="major", axis="y", alpha=0.3)
 
-    ax.legend(
-        loc="upper left",
-        bbox_to_anchor=(1.02, 1),
-        fontsize=10,
-        frameon=False,
-    )
+    ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=10, frameon=False)
 
-    fig.subplots_adjust(
-        right=0.75,
-        left=0.10,
-        bottom=0.12,
-        top=0.97,
-    )
+    fig.subplots_adjust(right=0.75, left=0.10, bottom=0.12, top=0.97)
 
-    # Save
-    fig.savefig(
-        output_dir / f"{name}_alphas.png",
-        dpi=300,
-        bbox_inches="tight",
-    )
+    fig.savefig(output_dir / f"{name}_alphas.png", dpi=300, bbox_inches="tight")
 
     plt.show()

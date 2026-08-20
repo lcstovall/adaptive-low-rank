@@ -2,8 +2,18 @@ from itertools import product
 
 
 def generate_runs(experiment):
-    """
-    Expand an experiment configuration into a list of individual runs.
+    """Expand parameter grids into individual benchmark specifications.
+
+    Parameters
+    ----------
+    experiment : dict
+        Experiment configuration containing an ``algorithms`` mapping. Scalar
+        parameter values are treated as one-element grids.
+
+    Returns
+    -------
+    list of dict
+        One run specification for every Cartesian-product combination.
     """
     runs = []
 
@@ -16,9 +26,7 @@ def generate_runs(experiment):
         keys = list(params.keys())
 
         for values in product(*(params[k] for k in keys)):
-            run = {
-                "algorithm": algorithm
-            }
+            run = {"algorithm": algorithm}
             run.update(dict(zip(keys, values)))
             runs.append(run)
 

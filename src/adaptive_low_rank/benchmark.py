@@ -4,25 +4,26 @@ from numpy.linalg import norm
 
 
 def benchmark(X, runs, V=None):
-    """
-    Execute a list of benchmark runs.
+    """Execute a collection of configured benchmark runs.
 
     Parameters
     ----------
     X : np.ndarray
-        Data matrix.
+        Input matrix with shape ``(d, n)``.
 
     runs : list[dict]
-        List of experiment dictionaries.
+        Run specifications. Each dictionary must contain ``algorithm`` and
+        ``k`` and may contain algorithm-specific keyword arguments.
 
     V : np.ndarray | None
-        Truncated right singular vectors. Used for alpha computation
-        when compute_alpha=True.
+        Truncated right singular vectors used for alpha computation when
+        ``compute_alpha=True``.
 
     Returns
     -------
-    list[dict]
-        Benchmark results.
+    list of dict
+        One result dictionary per run, containing the algorithm name,
+        parameters, initial squared Frobenius norm, and ``AlgorithmResult``.
     """
     results = []
 
@@ -37,20 +38,12 @@ def benchmark(X, runs, V=None):
         Algorithm = ALGORITHMS[algorithm_name]
         algorithm = Algorithm()
 
-        result = algorithm.select_columns(
-            X,
-            k=k,
-            V=V,
-            **params,
-        )
+        result = algorithm.select_columns(X, k=k, V=V, **params)
 
         results.append(
             {
                 "algorithm": algorithm_name,
-                "parameters": {
-                    "k": k,
-                    **params,
-                },
+                "parameters": {"k": k, **params},
                 "init_res": X_fro_norm2,
                 "result": result,
             }
