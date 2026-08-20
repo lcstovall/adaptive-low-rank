@@ -2,9 +2,8 @@ from pathlib import Path
 from scipy.io import loadmat
 from sklearn.datasets import fetch_openml
 import numpy as np
-import pandas as pd
 from PIL import Image
-import graphlearning as gl
+#import graphlearning as gl
 
 
 def load_dataset(name):
@@ -12,7 +11,8 @@ def load_dataset(name):
     root = Path(__file__).resolve().parents[2]
 
     if name == "interactions":
-        return loadmat(root / "data" / "interactions.mat")["B"]
+        data = loadmat(root / "data" / "interactions.mat")["B"]
+        return data
 
     elif name == "mnist":
         mnist = fetch_openml('mnist_784', as_frame=False, parser='auto')
@@ -32,17 +32,17 @@ def load_dataset(name):
             image = np.asarray(Image.open(file), dtype=float)
             images.append(image.ravel())
 
-        X = np.asarray(images).T
+        data = np.asarray(images).T
         
-        return X
-
-    elif name == "cfar10T":
-        data, labels = gl.datasets.load("cifar10", metric="simclr")
-        return data.T
-
-    elif name == "cfar10":
-        data, labels = gl.datasets.load("cifar10", metric="simclr")
         return data
+
+    # elif name == "cfar10T":
+    #     data, labels = gl.datasets.load("cifar10", metric="simclr")
+    #     return data.T
+
+    # elif name == "cfar10":
+    #     data, labels = gl.datasets.load("cifar10", metric="simclr")
+    #     return data
 
     else:
         raise ValueError(f"Unknown dataset '{name}'")

@@ -2,6 +2,7 @@ from copy import deepcopy
 from adaptive_low_rank.registry import ALGORITHMS
 from numpy.linalg import norm
 
+
 def benchmark(X, runs, V=None):
     """
     Execute a list of benchmark runs.
@@ -10,11 +11,13 @@ def benchmark(X, runs, V=None):
     ----------
     X : np.ndarray
         Data matrix.
+
     runs : list[dict]
         List of experiment dictionaries.
+
     V : np.ndarray | None
-        Truncated right singular vectors. If None, alpha values are not
-        computed.
+        Truncated right singular vectors. Used for alpha computation
+        when compute_alpha=True.
 
     Returns
     -------
@@ -22,7 +25,8 @@ def benchmark(X, runs, V=None):
         Benchmark results.
     """
     results = []
-    X_fro_norm2 = norm(X, ord='fro')**2.
+
+    X_fro_norm2 = norm(X, ord="fro") ** 2
 
     for run in runs:
         params = deepcopy(run)
@@ -43,7 +47,10 @@ def benchmark(X, runs, V=None):
         results.append(
             {
                 "algorithm": algorithm_name,
-                "parameters": {"k": k, **params},
+                "parameters": {
+                    "k": k,
+                    **params,
+                },
                 "init_res": X_fro_norm2,
                 "result": result,
             }

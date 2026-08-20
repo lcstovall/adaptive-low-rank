@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "config",
     nargs="?",
-    default="interactions1.yml",
+    default="interactions_residual.yml",
     help="Experiment YAML file (default: interactions_test.yml)",
 )
 args = parser.parse_args()
@@ -28,7 +28,7 @@ with open(config_path) as f:
 # Load dataset
 X = load_dataset(experiment["dataset"])
 
-# Compute V if r is provided.
+# Compute V if needed
 V = None
 if "r" in experiment:
     V = LowRankAlgorithm.compute_v(X, experiment["r"])
@@ -37,7 +37,7 @@ runs = generate_runs(experiment)
 results = benchmark(
     X=X,
     runs=runs,
-    V=V
+    V=V,
 )
 
 # Save

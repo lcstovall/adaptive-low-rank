@@ -15,14 +15,10 @@ from adaptive_low_rank.algorithms import (
 
 def generate_svd_dataset(n, d, rank=20, random_state=0):
     rng = np.random.RandomState(random_state)
-
     U, _ = np.linalg.qr(rng.randn(d, rank))
-
     V = rng.randn(n, rank)
     V /= np.linalg.norm(V, axis=0, keepdims=True)
-
     singular_values = np.linspace(1.0, 0.1, rank)
-
     return U @ np.diag(singular_values) @ V.T
 
 
@@ -46,9 +42,7 @@ def benchmark_runtime(
     }
 
     for n_idx, n in enumerate(n_values):
-
         print(f"d={d}, n={n}")
-
         X = generate_svd_dataset(
             n=n,
             d=d,
@@ -57,28 +51,20 @@ def benchmark_runtime(
         )
 
         for name, algorithm in algorithms.items():
-
             for trial in range(repeats):
-
                 random_state = trial
-
                 start = time.perf_counter()
-
                 result = algorithm.select_columns(
                     X,
                     k=k,
                     random_state=random_state,
                 )
-
                 elapsed = time.perf_counter() - start
-
                 runtimes[name][trial, n_idx] = result.runtimes[-1]
-
                 print(
                     f"  {name}: "
                     f"{elapsed:.4f} s"
                 )
-
     return runtimes
 
 if __name__ == "__main__":

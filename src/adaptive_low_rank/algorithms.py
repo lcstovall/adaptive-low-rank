@@ -18,50 +18,106 @@ class LowRankAlgorithm(ABC):
         random_state: Optional[np.random.RandomState | int] = None,
         n_candidates: Optional[int] = None,
         V: Optional[np.ndarray] = None,
+        compute_alpha: bool = False,
     ) -> AlgorithmResult:
-        """Select columns from X and return the resulting approximation data."""
+        """
+        Select columns from X and return the resulting approximation data.
 
-        # Work directly with X.
+        Parameters
+        ----------
+        X : np.ndarray
+            Data matrix with shape (features, columns).
+
+        k : int
+            Number of columns to select.
+
+        random_state : np.random.RandomState, int, or None
+            Random number generator or seed.
+
+        n_candidates : int or None
+            Number of candidate columns used by randomized algorithms.
+
+        V : np.ndarray or None
+            Right singular vectors used for alpha computation.
+
+        compute_alpha : bool, default=False
+            Whether to compute alpha. Only Adaptive and BatchMax
+            actually use this option.
+        """
+
         R = self._as_matrix(X.copy())
 
-        indices = np.full(k, -1, dtype=int)
+        indices = np.full(
+            k,
+            -1,
+            dtype=int,
+        )
+
         residuals: list[float] = []
         alphas: list[Optional[float]] = []
         times: list[float] = []
 
         start = time.perf_counter()
 
-        # Allow either an integer seed or an existing RandomState.
+        # Random state
         if random_state is None:
             rng = np.random.RandomState()
-        elif isinstance(random_state, (int, np.integer)):
-            rng = np.random.RandomState(random_state)
+
+        elif isinstance(
+            random_state,
+            (int, np.integer),
+        ):
+            rng = np.random.RandomState(
+                random_state
+            )
+
         else:
             rng = random_state
 
+        # Iterative column selection
         for c in range(k):
+
             idx, alpha = self.select_index(
                 R,
                 k,
                 rng,
                 n_candidates,
                 V,
+                compute_alpha,
             )
 
             indices[c] = idx
             alphas.append(alpha)
 
-            # Project out the selected COLUMN.
-            R = self._project_out(R, R[:, idx])
+            # Project out the selected column.
+            R = self._project_out(
+                R,
+                R[:, idx],
+            )
 
-            times.append(time.perf_counter() - start)
-            residuals.append(float(np.linalg.norm(R, ord="fro")))
+            # Record cumulative runtime.
+            times.append(
+                time.perf_counter() - start
+            )
+
+            # Record residual norm.
+            residuals.append(
+                float(
+                    np.linalg.norm(
+                        R,
+                        ord="fro",
+                    )
+                )
+            )
 
         return AlgorithmResult(
             indices=indices,
             residuals=np.asarray(residuals),
             runtimes=np.asarray(times),
-            alphas=np.asarray(alphas, dtype=float),
+            alphas=np.asarray(
+                alphas,
+                dtype=float,
+            ),
         )
 
     @abstractmethod
@@ -72,52 +128,154 @@ class LowRankAlgorithm(ABC):
         random_state: np.random.RandomState,
         n_candidates: Optional[int] = None,
         V: Optional[np.ndarray] = None,
+        compute_alpha: bool = False,
     ) -> tuple[int, Optional[float]]:
-        """Return the index of the next selected column."""
+        """
+        Return the index of the next selected column.
+
+        The compute_alpha argument is only used by Adaptive
+        and BatchMax.
+        """
         pass
 
+    # =============================================================
+    # Shared utilities
+    # =============================================================
+
     @staticmethod
-    def compute_v(X: np.ndarray, r: int) -> np.ndarray:
+    def compute_v(
+        X: np.ndarray,
+        r: int,
+    ) -> np.ndarray:
         """
         Compute the first r right singular vectors of X.
 
+        Parameters
+        ----------
+        X : np.ndarray
+            Data matrix.
+
+        r : int
+            Number of right singular vectors.
+
         Returns
         -------
-        V : ndarray
-            Matrix whose columns are the first r right singular vectors.
+        V : np.ndarray
+            Matrix whose columns are the first r right singular
+            vectors.
         """
-        U, S, Vt = np.linalg.svd(X, full_matrices=False)
+
+        U, S, Vt = np.linalg.svd(
+            X,
+            full_matrices=False,
+        )
+
         return Vt.T[:, :r]
 
-    @staticmethod 
-    def _compute_alpha( R: np.ndarray, V: np.ndarray, n_candidates: int, ) -> Optional[float]: 
-        """Compute the alpha value for a given iteration""" 
-        if V is None: 
-            return None 
-        row_norms_sq = np.sum(R**2, axis=1) 
-        total_norm = row_norms_sq.sum() 
-        if np.isclose(total_norm, 0.0): 
-            return 0.0 
-        p = row_norms_sq / total_norm 
-        M = (V.T @ R) @ R.T 
-        g = np.linalg.norm(M, axis=0) ** 2 
-        g = np.divide( g, row_norms_sq, out=np.zeros_like(g), where=row_norms_sq > 0, ) 
-        g[row_norms_sq < 1e-13] = 0.0 
-        order = np.argsort(g) 
-        g = g[order] 
-        p = p[order] 
-        F = np.cumsum(p) 
-        q = np.concatenate(([F[0] ** n_candidates], np.diff(F**n_candidates))) 
-        d_q = np.sum(q * g) 
-        d_p = np.sum(p * g) 
-        return (d_q / d_p - 1) if d_p > 0 else 0.0
+    @staticmethod
+    def _compute_alpha(
+        R: np.ndarray,
+        V: np.ndarray,
+        n_candidates: int,
+    ) -> Optional[float]:
+        """
+        Compute the alpha value for the current iteration.
+
+        Parameters
+        ----------
+        R : np.ndarray
+            Current residual matrix.
+
+        V : np.ndarray
+            Truncated right singular vectors.
+
+        n_candidates : int
+            Number of candidates.
+
+        Returns
+        -------
+        float or None
+            Alpha value.
+        """
+
+        if V is None:
+            return None
+
+        # Squared norm of each row
+        row_norms_sq = np.sum(
+            R**2,
+            axis=1,
+        )
+
+        total_norm = row_norms_sq.sum()
+
+        if np.isclose(
+            total_norm,
+            0.0,
+        ):
+            return 0.0
+
+        p = row_norms_sq / total_norm
+        M = (V.T @ R) @ R.T
+
+        g = (
+            np.linalg.norm(
+                M,
+                axis=0,
+            )
+            ** 2
+        )
+
+        g = np.divide(
+            g,
+            row_norms_sq,
+            out=np.zeros_like(g),
+            where=row_norms_sq > 0,
+        )
+
+        g[row_norms_sq < 1e-13] = 0.0
+        order = np.argsort(g)
+        g = g[order]
+        p = p[order]
+        F = np.cumsum(p)
+        q = np.concatenate(
+            (
+                [F[0] ** n_candidates],
+                np.diff(
+                    F**n_candidates
+                ),
+            )
+        )
+
+        d_q = np.sum(
+            q * g
+        )
+
+        d_p = np.sum(
+            p * g
+        )
+
+        if d_p > 0:
+            return d_q / d_p - 1
+
+        return 0.0
 
     @staticmethod
-    def _as_matrix(X: np.ndarray) -> np.ndarray:
-        arr = np.asarray(X, dtype=float)
+    def _as_matrix(
+        X: np.ndarray,
+    ) -> np.ndarray:
+        """Ensure X is a two-dimensional floating-point array."""
+
+        arr = np.asarray(
+            X,
+            dtype=float,
+        )
 
         if arr.ndim == 1:
-            arr = arr.reshape(-1, 1)
+            arr = arr.reshape(
+                -1,
+                1,
+            )
 
         return arr
 
@@ -126,11 +284,22 @@ class LowRankAlgorithm(ABC):
         R: np.ndarray,
         center_column: np.ndarray,
     ) -> np.ndarray:
-        """Project every column of R orthogonally away from center_column."""
+        """
+        Project every column of R orthogonally away from
+        center_column.
+        """
 
-        norm_sq = float(np.dot(center_column, center_column))
+        norm_sq = float(
+            np.dot(
+                center_column,
+                center_column,
+            )
+        )
 
-        if np.isclose(norm_sq, 0.0):
+        if np.isclose(
+            norm_sq,
+            0.0,
+        ):
             return R
 
         projection = np.outer(
@@ -139,6 +308,11 @@ class LowRankAlgorithm(ABC):
         ) / norm_sq
 
         return R - projection
+
+
+# =================================================================
+# Adaptive
+# =================================================================
 
 
 class Adaptive(LowRankAlgorithm):
@@ -153,29 +327,64 @@ class Adaptive(LowRankAlgorithm):
         random_state: np.random.RandomState,
         n_candidates: Optional[int] = None,
         V: Optional[np.ndarray] = None,
+        compute_alpha: bool = False,
     ) -> tuple[int, Optional[float]]:
 
         if n_candidates is None:
             n_candidates = 1
 
-        column_norms_sq = np.sum(R**2, axis=0)
-
-        cumulative = np.cumsum(column_norms_sq)
-
-        if cumulative.size == 0 or np.isclose(cumulative[-1], 0.0):
-            return 0, None
-
-        rand_val = random_state.uniform() * cumulative[-1]
-
-        idx = int(np.searchsorted(cumulative, rand_val))
-
-        alpha = self._compute_alpha(
-            R,
-            V,
-            n_candidates,
+        column_norms_sq = np.sum(
+            R**2,
+            axis=0,
         )
 
-        return min(idx, R.shape[1] - 1), alpha
+        cumulative = np.cumsum(
+            column_norms_sq
+        )
+
+        if (
+            cumulative.size == 0
+            or np.isclose(
+                cumulative[-1],
+                0.0,
+            )
+        ):
+            return 0, None
+
+        # Sample proportional to squared residual norm.
+        rand_val = (
+            random_state.uniform()
+            * cumulative[-1]
+        )
+
+        idx = int(
+            np.searchsorted(
+                cumulative,
+                rand_val,
+            )
+        )
+
+        alpha = None
+
+        if compute_alpha and V is not None:
+            alpha = self._compute_alpha(
+                R,
+                V,
+                n_candidates,
+            )
+
+        return (
+            min(
+                idx,
+                R.shape[1] - 1,
+            ),
+            alpha,
+        )
+
+
+# =================================================================
+# Batch Max
+# =================================================================
 
 
 class BatchMax(LowRankAlgorithm):
@@ -190,6 +399,7 @@ class BatchMax(LowRankAlgorithm):
         random_state: np.random.RandomState,
         n_candidates: Optional[int] = None,
         V: Optional[np.ndarray] = None,
+        compute_alpha: bool = False,
     ) -> tuple[int, Optional[float]]:
 
         n_samples = R.shape[1]
@@ -200,15 +410,32 @@ class BatchMax(LowRankAlgorithm):
                 2 + int(np.log(k)),
             )
 
-        column_norms_sq = np.sum(R**2, axis=0)
+        # ---------------------------------------------------------
+        # Sample candidate columns
+        # ---------------------------------------------------------
 
-        cumulative = np.cumsum(column_norms_sq)
+        column_norms_sq = np.sum(
+            R**2,
+            axis=0,
+        )
 
-        if cumulative.size == 0 or np.isclose(cumulative[-1], 0.0):
+        cumulative = np.cumsum(
+            column_norms_sq
+        )
+
+        if (
+            cumulative.size == 0
+            or np.isclose(
+                cumulative[-1],
+                0.0,
+            )
+        ):
             return 0, None
 
         rand_vals = (
-            random_state.uniform(size=n_candidates)
+            random_state.uniform(
+                size=n_candidates
+            )
             * cumulative[-1]
         )
 
@@ -231,31 +458,61 @@ class BatchMax(LowRankAlgorithm):
 
         RR = R.T @ R[:, candidate_ids]
 
-        numerators = np.linalg.norm(RR, axis=0) ** 2
+        numerators = (
+            np.linalg.norm(
+                RR,
+                axis=0,
+            )
+            ** 2
+        )
 
-        denominators = np.linalg.norm(
-            R[:, candidate_ids],
-            axis=0,
-        ) ** 2
+        denominators = (
+            np.linalg.norm(
+                R[:, candidate_ids],
+                axis=0,
+            )
+            ** 2
+        )
 
-        scores = np.zeros_like(numerators)
+        scores = np.zeros_like(
+            numerators
+        )
 
-        mask = ~np.isclose(denominators, 0.0)
+        mask = ~np.isclose(
+            denominators,
+            0.0,
+        )
 
         scores[mask] = (
             numerators[mask]
             / denominators[mask]
         )
 
-        best_idx = int(np.argmax(scores))
-
-        alpha = self._compute_alpha(
-            R,
-            V,
-            n_candidates,
+        best_idx = int(
+            np.argmax(scores)
         )
 
-        return int(candidate_ids[best_idx]), alpha
+        alpha = None
+
+        if compute_alpha and V is not None:
+            alpha = self._compute_alpha(
+                R,
+                V,
+                n_candidates,
+            )
+
+        return (
+            int(
+                candidate_ids[best_idx]
+            ),
+            alpha,
+        )
+
+
+# =================================================================
+# Greedy
+# =================================================================
+
 
 class Greedy(LowRankAlgorithm):
     """Greedily select the column that best reduces residual energy."""
@@ -269,27 +526,24 @@ class Greedy(LowRankAlgorithm):
         random_state: np.random.RandomState,
         n_candidates: Optional[int] = None,
         V: Optional[np.ndarray] = None,
+        compute_alpha: bool = False,
     ) -> tuple[int, Optional[float]]:
 
-        # R has shape (features, columns)
-        # R @ R.T has shape (features, features)
         RR = R @ R.T
 
-        # One score for each column.
-        # For column r_j:
-        # ||R.T r_j||^2 = r_j.T (R R.T) r_j
         numerators = np.sum(
             R * (RR @ R),
             axis=0,
         )
 
-        # One denominator for each column.
         denominators = np.sum(
             R**2,
             axis=0,
         )
 
-        scores = np.zeros_like(numerators)
+        scores = np.zeros_like(
+            numerators
+        )
 
         mask = ~np.isclose(
             denominators,
@@ -301,7 +555,15 @@ class Greedy(LowRankAlgorithm):
             / denominators[mask]
         )
 
-        return int(np.argmax(scores)), None
+        return (
+            int(np.argmax(scores)),
+            None,
+        )
+
+
+# =================================================================
+# Greedy++
+# =================================================================
 
 
 class GreedyPP(LowRankAlgorithm):
@@ -316,6 +578,7 @@ class GreedyPP(LowRankAlgorithm):
         random_state: np.random.RandomState,
         n_candidates: Optional[int] = None,
         V: Optional[np.ndarray] = None,
+        compute_alpha: bool = False,
     ) -> tuple[int, Optional[float]]:
 
         n_samples = R.shape[1]
@@ -334,28 +597,51 @@ class GreedyPP(LowRankAlgorithm):
 
         RR = R.T @ R[:, candidate_ids]
 
-        numerators = np.linalg.norm(
-            RR,
-            axis=0,
-        ) ** 2
+        numerators = (
+            np.linalg.norm(
+                RR,
+                axis=0,
+            )
+            ** 2
+        )
 
-        denominators = np.linalg.norm(
-            R[:, candidate_ids],
-            axis=0,
-        ) ** 2
+        denominators = (
+            np.linalg.norm(
+                R[:, candidate_ids],
+                axis=0,
+            )
+            ** 2
+        )
 
-        scores = np.zeros_like(numerators)
+        scores = np.zeros_like(
+            numerators
+        )
 
-        mask = ~np.isclose(denominators, 0.0)
+        mask = ~np.isclose(
+            denominators,
+            0.0,
+        )
 
         scores[mask] = (
             numerators[mask]
             / denominators[mask]
         )
 
-        best_idx = int(np.argmax(scores))
+        best_idx = int(
+            np.argmax(scores)
+        )
 
-        return int(candidate_ids[best_idx]), None
+        return (
+            int(
+                candidate_ids[best_idx]
+            ),
+            None,
+        )
+
+
+# =================================================================
+# Random
+# =================================================================
 
 
 class Random(LowRankAlgorithm):
@@ -370,6 +656,7 @@ class Random(LowRankAlgorithm):
         random_state: np.random.RandomState,
         n_candidates: Optional[int] = None,
         V: Optional[np.ndarray] = None,
+        compute_alpha: bool = False,
     ) -> tuple[int, Optional[float]]:
 
         column_norms = np.linalg.norm(
@@ -377,9 +664,12 @@ class Random(LowRankAlgorithm):
             axis=0,
         )
 
-        tol = 1e-12 * np.linalg.norm(
-            R,
-            "fro",
+        tol = (
+            1e-12
+            * np.linalg.norm(
+                R,
+                "fro",
+            )
         )
 
         candidates = np.flatnonzero(
@@ -390,6 +680,10 @@ class Random(LowRankAlgorithm):
             return 0, None
 
         return (
-            int(random_state.choice(candidates)),
+            int(
+                random_state.choice(
+                    candidates
+                )
+            ),
             None,
         )
