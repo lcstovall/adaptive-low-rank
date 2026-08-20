@@ -1,6 +1,6 @@
 import time
+import pickle
 import numpy as np
-import matplotlib.pyplot as plt
 
 from pathlib import Path
 
@@ -10,7 +10,6 @@ from adaptive_low_rank.algorithms import (
     BatchMax,
     Greedy,
     GreedyPP,
-    Random,
 )
 
 
@@ -39,7 +38,6 @@ def benchmark_runtime(
         "BatchMax": BatchMax(),
         "Greedy": Greedy(),
         "Greedy++": GreedyPP(),
-        "Random": Random(),
     }
 
     runtimes = {
@@ -83,64 +81,6 @@ def benchmark_runtime(
 
     return runtimes
 
-def plot_runtime_scaling(
-    n_values,
-    runtimes,
-    d,
-    output_dir,
-):
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    fig, ax = plt.subplots(
-        figsize=(9, 6),
-        dpi=300,
-    )
-
-    for name, values in runtimes.items():
-
-        mean = values.mean(axis=0)
-        std = values.std(axis=0)
-
-        ax.plot(
-            n_values,
-            mean,
-            marker="o",
-            label=name,
-        )
-
-        ax.fill_between(
-            n_values,
-            mean - std,
-            mean + std,
-            alpha=0.2,
-        )
-
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-
-    ax.set_xlabel("Number of columns (n)")
-    ax.set_ylabel("Total runtime (seconds)")
-
-    ax.set_title(
-        f"Runtime scaling with number of columns (d={d}, k=100)"
-    )
-
-    ax.legend()
-
-    fig.tight_layout()
-
-    fig.savefig(
-        output_dir / f"runtime_scaling_d{d}.png",
-        bbox_inches="tight",
-    )
-
-    fig.savefig(
-        output_dir / f"runtime_scaling_d{d}.pdf",
-        bbox_inches="tight",
-    )
-
-    plt.close(fig)
-
 if __name__ == "__main__":
 
     n_values = [
@@ -149,7 +89,6 @@ if __name__ == "__main__":
         5_000,
         10_000,
         50_000,
-        100_000,
     ]
 
     dimensions = [
@@ -157,10 +96,21 @@ if __name__ == "__main__":
         100,
         500,
         1000,
-        5000,
     ]
 
     output_dir = Path("results/runtime_scaling")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    algorithm_names = ["Adaptive", "BatchMax", "Greedy", "Greedy++"]
+    repeats = 10
+    runtime_matrix = np.empty(
+        (
+            len(algorithm_names),
+            len(dimensions),
+            repeats,
+            len(n_values),
+        )
+    )
 
     for d in dimensions:
 
@@ -168,13 +118,24 @@ if __name__ == "__main__":
             n_values=n_values,
             d=d,
             k=100,
-            repeats=1,
+            repeats=repeats,
             rank=20,
         )
 
-        plot_runtime_scaling(
-            n_values=n_values,
-            runtimes=runtimes,
-            d=d,
-            output_dir=output_dir,
+        dimension_index = dimensions.index(d)
+        for algorithm_index, name in enumerate(algorithm_names):
+            runtime_matrix[algorithm_index, dimension_index] = runtimes[name]
+
+    mean_runtimes = runtime_matrix.mean(axis=2)
+
+    with open(output_dir / "runtime_scaling.pkl", "wb") as file:
+        pickle.dump(
+            {
+                "algorithms": algorithm_names,
+                "n_values": n_values,
+                "dimensions": dimensions,
+                "runtimes": runtime_matrix,
+                "mean_runtimes": mean_runtimes,
+            },
+            file,
         )

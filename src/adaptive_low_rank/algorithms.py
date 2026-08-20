@@ -155,6 +155,9 @@ class Adaptive(LowRankAlgorithm):
         V: Optional[np.ndarray] = None,
     ) -> tuple[int, Optional[float]]:
 
+        if n_candidates is None:
+            n_candidates = 1
+
         column_norms_sq = np.sum(R**2, axis=0)
 
         cumulative = np.cumsum(column_norms_sq)
