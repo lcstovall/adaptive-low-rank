@@ -44,8 +44,10 @@ def save_results(results, config_path, output_dir):
             "algorithm": run["algorithm"],
             **run["parameters"],
             "final_residual": result.residuals[-1],
-            "runtime": result.runtimes[-1],
         }
+
+        if result.runtimes.size:
+            row["runtime"] = result.runtimes[-1]
 
         if save_alpha:
             row["final_alpha"] = result.alphas[-1]

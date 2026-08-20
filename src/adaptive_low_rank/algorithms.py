@@ -19,6 +19,7 @@ class LowRankAlgorithm(ABC):
         n_candidates: Optional[int] = None,
         V: Optional[np.ndarray] = None,
         compute_alpha: bool = False,
+        compute_runtime: bool = False,
     ) -> AlgorithmResult:
         """
         Select columns from X and return the resulting approximation data.
@@ -43,6 +44,9 @@ class LowRankAlgorithm(ABC):
         compute_alpha : bool, default=False
             Whether to compute alpha. Only Adaptive and BatchMax
             actually use this option.
+
+        compute_runtime : bool, default=False
+            Whether to record cumulative runtimes.
         """
 
         R = self._as_matrix(X.copy())
@@ -57,7 +61,7 @@ class LowRankAlgorithm(ABC):
         alphas: list[Optional[float]] = []
         times: list[float] = []
 
-        start = time.perf_counter()
+        start = time.perf_counter() if compute_runtime else None
 
         # Random state
         if random_state is None:
@@ -95,10 +99,10 @@ class LowRankAlgorithm(ABC):
                 R[:, idx],
             )
 
-            # Record cumulative runtime.
-            times.append(
-                time.perf_counter() - start
-            )
+            if compute_runtime:
+                times.append(
+                    time.perf_counter() - start
+                )
 
             # Record residual norm.
             residuals.append(

@@ -14,10 +14,15 @@ def load_dataset(name):
         data = loadmat(root / "data" / "interactions.mat")["B"]
         return data
 
+    elif name == "mnistT":
+            mnist = fetch_openml('mnist_784', as_frame=False, parser='auto')
+            X = mnist['data'].astype(np.float64)
+            return X.T
+
     elif name == "mnist":
         mnist = fetch_openml('mnist_784', as_frame=False, parser='auto')
         X = mnist['data'].astype(np.float64)
-        return X.T
+        return X[:1000, :]
 
     elif name == "yearprediction":
         data = np.loadtxt(root / "data" / "YearPredictionMSD.txt", delimiter=",")
@@ -41,7 +46,7 @@ def load_dataset(name):
 
     elif name == "cfar10":
         data, labels = gl.datasets.load("cifar10", metric="simclr")
-        return data
+        return data[:1000, :]
 
     else:
         raise ValueError(f"Unknown dataset '{name}'")

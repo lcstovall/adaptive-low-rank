@@ -57,7 +57,7 @@ def benchmark_runtime(
                     random_state=random_state,
                 )
                 elapsed = time.perf_counter() - start
-                runtimes[name][trial, n_idx] = result.runtimes[-1]
+                runtimes[name][trial, n_idx] = elapsed
                 print(
                     f"  {name}: "
                     f"{elapsed:.4f} s"

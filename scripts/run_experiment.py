@@ -16,7 +16,7 @@ parser.add_argument(
     "config",
     nargs="?",
     default="interactions_residual.yml",
-    help="Experiment YAML file (default: interactions_test.yml)",
+    help="Experiment YAML file (default: interactions_residual.yml)",
 )
 args = parser.parse_args()
 config_path = ROOT / "configs" / args.config

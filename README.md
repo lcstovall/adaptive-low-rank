@@ -201,12 +201,13 @@ alphas.pdf
 alphas.png
 ```
 
-`summary.csv` contains
+Runtime measurement is disabled by default. Set `compute_runtime: true` for
+an algorithm run when runtime data is needed. `summary.csv` contains
 
 - algorithm
 - parameters
 - final residual
-- runtime
+- runtime (if computed)
 - final alpha (if available)
 
 ---

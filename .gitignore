@@ -47,6 +47,7 @@ data/YearPredictionMSD.txt
 *.pkl
 *.pdf
 *.png
+*.npz
 
 # Optional: local configuration
 .env

@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+from matplotlib.ticker import FixedLocator
 import numpy as np
 from collections import defaultdict
 from pathlib import Path
@@ -33,6 +34,12 @@ def _marker_for_algorithm(algorithm):
     marker = available_markers[0] if available_markers else "o"
     _assigned_markers[algorithm] = marker
     return marker
+
+
+def _marker_positions(length, max_markers=20):
+    """Return evenly spaced marker positions along a plotted curve."""
+    spacing = max(int(np.ceil(length / max_markers)), 1)
+    return np.arange(0, length, spacing)
 
 
 def plot_residuals(results, output_dir, name="residuals"):
@@ -118,7 +125,7 @@ def plot_residuals(results, output_dir, name="residuals"):
             color=color,
             linewidth=2.0,
             marker=marker,
-            markevery=max(len(x) // 20, 1),
+            markevery=_marker_positions(len(x)),
             markersize=8,
             markeredgewidth=3,
             label=label,
@@ -136,13 +143,32 @@ def plot_residuals(results, output_dir, name="residuals"):
             )
 
     ax.set_yscale("log")
+
+    if name != "interactions":
+        ymin, ymax = ax.get_ylim()
+        ax.yaxis.set_minor_locator(
+            FixedLocator(
+                np.geomspace(
+                    ymin,
+                    ymax,
+                    6,
+                )
+            )
+        )
+        ax.tick_params(
+            axis="y",
+            which="minor",
+            length=0,
+            labelleft=False,
+        )
+
     ax.set_xlabel("k", fontsize=13)
     ax.set_ylabel("Normalized Residual", fontsize=13)
     ax.tick_params(axis="both", labelsize=11)
 
     ax.grid(
         True,
-        which="major",
+        which="minor" if name != "interactions" else "major",
         axis="y",
         alpha=0.3,
     )
@@ -414,7 +440,7 @@ def plot_alphas(results, output_dir, name="alphas"):
             mean,
             color=color,
             marker=marker,
-            markevery=max(len(x) // 20, 1),
+            markevery=_marker_positions(len(x)),
             markersize=4,
             label=label,
         )
