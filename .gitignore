@@ -44,9 +44,9 @@ data/YearPredictionMSD.txt
 .matplotlib/
 
 # Optional: generated data files
-# *.pkl
-# *.pdf
-# *.png
+*.pkl
+*.pdf
+*.png
 
 # Optional: local configuration
 .env

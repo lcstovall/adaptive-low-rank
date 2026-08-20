@@ -1,11 +1,10 @@
 numpy>=1.24
 scipy>=1.10
-matplotlib>=3.5
+matplotlib>=3.7
 pandas>=1.5
 PyYAML>=6.0
-scikit-learn
-pillow
-torch
-torchvision
-transformers>=4.40
-tqdm
+scikit-learn>=1.2
+pillow>=9.0
+graphlearning>=1.7.5
+jupyterlab>=4.0
+ipykernel>=6.0

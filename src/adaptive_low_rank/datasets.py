@@ -3,7 +3,7 @@ from scipy.io import loadmat
 from sklearn.datasets import fetch_openml
 import numpy as np
 from PIL import Image
-#import graphlearning as gl
+import graphlearning as gl
 
 
 def load_dataset(name):
@@ -17,7 +17,6 @@ def load_dataset(name):
     elif name == "mnist":
         mnist = fetch_openml('mnist_784', as_frame=False, parser='auto')
         X = mnist['data'].astype(np.float64)
-        print(X.shape)
         return X.T
 
     elif name == "yearprediction":
@@ -36,13 +35,13 @@ def load_dataset(name):
         
         return data
 
-    # elif name == "cfar10T":
-    #     data, labels = gl.datasets.load("cifar10", metric="simclr")
-    #     return data.T
+    elif name == "cfar10T":
+        data, labels = gl.datasets.load("cifar10", metric="simclr")
+        return data.T
 
-    # elif name == "cfar10":
-    #     data, labels = gl.datasets.load("cifar10", metric="simclr")
-    #     return data
+    elif name == "cfar10":
+        data, labels = gl.datasets.load("cifar10", metric="simclr")
+        return data
 
     else:
         raise ValueError(f"Unknown dataset '{name}'")

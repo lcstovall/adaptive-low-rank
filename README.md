@@ -49,6 +49,18 @@ Install the package
 pip install -e .
 ```
 
+To run the plotting notebooks as well, install the notebook dependencies:
+
+```bash
+pip install -e ".[notebooks]"
+```
+
+Alternatively, install the complete requirements file into the virtual environment:
+
+```bash
+pip install -r requirements.txt
+```
+
 ---
 
 ## Repository Structure

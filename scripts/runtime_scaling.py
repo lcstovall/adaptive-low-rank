@@ -1,10 +1,7 @@
 import time
 import pickle
 import numpy as np
-
 from pathlib import Path
-
-
 from adaptive_low_rank.algorithms import (
     Adaptive,
     BatchMax,
