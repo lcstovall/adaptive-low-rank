@@ -5,6 +5,14 @@ import numpy as np
 from collections import defaultdict
 from pathlib import Path
 
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "mathtext.fontset": "cm",
+        "axes.unicode_minus": False,
+    }
+)
+
 METHOD_MARKERS = {
     "adaptive": "o",
     "batch_max": "s",
@@ -90,7 +98,9 @@ def plot_residuals(results, output_dir, name="residuals"):
         init_res = np.array([run["init_res"] for run in runs])
 
         # Normalize each residual trajectory by its initial squared norm.
-        residuals = residuals / init_res[:, None]
+        # residuals = residuals / init_res[:, None]
+        residuals = residuals / np.sqrt(init_res)[:, None]
+
 
         mean = residuals.mean(axis=0)
         x = np.arange(1, len(mean) + 1)

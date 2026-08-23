@@ -61,6 +61,36 @@ Alternatively, install the complete requirements file into the virtual environme
 pip install -r requirements.txt
 ```
 
+## Plotting Optimal Residual Curves
+
+To compare the shape of the optimal low-rank residual curves across the
+configured data sets, run:
+
+```bash
+python3 scripts/plot_optimal_residuals.py
+```
+
+The script excludes `mnist`, `cfar10`, and `interactions_alpha`. It normalizes
+the horizontal axis by each data set's maximum rank and the residual by its
+initial Frobenius norm, then writes
+`figures/optimal_residuals_normalized.png`. Use `--yscale log` to emphasize
+small residual differences.
+
+## Generating a Synthetic SVD Dataset
+
+Create a reproducible `2500 x 2500` matrix whose first 350 singular values
+follow an exponential decay with rate `0.1` per rank and whose remaining
+singular values are flat. Its columns contain 75 informative columns, 500
+correlated columns, and a weak-column tail scaled by `0.005`:
+
+```bash
+python3 scripts/generate_synthetic_dataset.py
+```
+
+The output is `data/synthetic_exp4.npz`. The generator is also available as
+`generate_synthetic_svd_dataset` in `adaptive_low_rank.datasets`, and the
+deterministic default profile can be loaded with `load_dataset("synthetic_exp4")`.
+
 ---
 
 ## Repository Structure
@@ -135,6 +165,27 @@ python scripts/run_experiment.py
 ```
 
 to use the default configuration.
+
+Run every YAML configuration in `configs/` with
+
+```bash
+python scripts/run_all_experiments.py
+```
+
+Use `--continue-on-error` to run remaining configurations after a failure, or
+`--pattern '*.yaml'` to select a different filename pattern.
+
+Generate synthetic datasets from configurations whose filenames start with
+`exp` or `poly` with
+
+```bash
+python scripts/generate_synthetic_datasets.py
+```
+
+Synthetic configurations must provide `decay_type` (`exp` or `poly`) and
+`decay_param`. The optional `n`, `d`, and `random_state` fields default to
+`2000`, `2000`, and `0`. Generated matrices are saved as `data/<config>.npz`;
+use `--force` to regenerate an existing file.
 
 ---
 

@@ -5,6 +5,65 @@ import numpy as np
 from PIL import Image
 import graphlearning as gl
 
+def generate_synthetic_dataset(
+    decay_type, decay_param, n=2000, d=2000, random_state=0
+):
+    """
+    Generate a synthetic matrix with prescribed singular-value decay.
+
+    Parameters
+    ----------
+    decay_type : {"poly", "exp"}
+        Type of singular-value decay.
+    decay_param : float
+        Decay parameter:
+            poly: sigma_i = i^(-decay_param)
+            exp:  sigma_i = exp(-decay_param * (i - 1))
+    n : int
+        Number of columns.
+    d : int
+        Number of rows.
+
+    Returns
+    -------
+    X : ndarray
+        Synthetic d x n matrix.
+    """
+
+    r = min(d, n)
+
+    rng = np.random.default_rng(random_state)
+
+    # Random orthonormal left singular vectors
+    U_random = rng.standard_normal((d, r))
+    U, _ = np.linalg.qr(U_random)
+
+    # Random orthonormal right singular vectors
+    V_random = rng.standard_normal((n, r))
+    V, _ = np.linalg.qr(V_random)
+
+    # Construct singular values
+    i = np.arange(1, r + 1)
+
+    if decay_type == "poly":
+        singular_values = i ** (-decay_param)
+
+    elif decay_type == "exp":
+        singular_values = np.exp(-decay_param * (i - 1))
+
+    else:
+        raise ValueError(
+            f"Unknown decay type: {decay_type}"
+        )
+
+    # Normalize so ||X||_F = 1
+    singular_values /= np.linalg.norm(singular_values)
+
+    # X = U Sigma V^T
+    X = (U * singular_values) @ V.T
+
+    return X
+
 
 def load_dataset(name):
     """Load a supported data set in matrix form.
@@ -14,7 +73,8 @@ def load_dataset(name):
     name : str
         Data-set identifier. Supported identifiers are ``interactions``,
         ``mnist``, ``mnistT``, ``yearprediction``, ``coil20``, ``cfar10``,
-        and ``cfar10T``.
+        and ``cfar10T``. Synthetic datasets are loaded from generated files
+        named ``data/<name>.npz``.
 
     Returns
     -------
@@ -33,6 +93,16 @@ def load_dataset(name):
     if name == "interactions":
         data = loadmat(root / "data" / "interactions.mat")["B"]
         return data
+
+    elif name.startswith("poly") or name.startswith("exp"):
+        path = root / "data" / f"{name}.npz"
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Synthetic dataset '{name}' was not found at {path}. "
+                "Run scripts/generate_synthetic_datasets.py first."
+            )
+        with np.load(path) as data:
+            return data["X"]
 
     elif name == "mnistT":
         mnist = fetch_openml("mnist_784", as_frame=False, parser="auto")

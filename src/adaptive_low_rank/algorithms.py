@@ -201,14 +201,20 @@ class LowRankAlgorithm(ABC):
 
         g = np.linalg.norm(M, axis=0) ** 2
 
-        g = np.divide(g, row_norms_sq, out=np.zeros_like(g), where=row_norms_sq > 0)
+        g = np.divide(g, row_norms_sq, out=np.zeros_like(g), where=row_norms_sq > 1e-16)
 
-        g[row_norms_sq < 1e-13] = 0.0
+        g[row_norms_sq < 1e-16] = 0.0
         order = np.argsort(g)
         g = g[order]
         p = p[order]
         F = np.cumsum(p)
-        q = np.concatenate(([F[0] ** n_candidates], np.diff(F**n_candidates)))
+
+        if n_candidates < 2501:
+            q = np.concatenate(([F[0] ** n_candidates], np.diff(F**n_candidates))) # q_i = F_i^b - F_{i-1}^b. F_n = 1, q_n = 1 - F_{n-1}^b
+            
+        else:
+            q = np.zeros_like(p)
+            q[-1] = 1.0
 
         d_q = np.sum(q * g)
 
@@ -216,7 +222,7 @@ class LowRankAlgorithm(ABC):
 
         if d_p > 0:
             return d_q / d_p - 1
-
+                    
         return 0.0
 
     @staticmethod

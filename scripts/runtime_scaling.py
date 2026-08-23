@@ -63,7 +63,7 @@ def benchmark_runtime(n_values, d, k=100, repeats=3, rank=20):
     runtimes = {name: np.zeros((repeats, len(n_values))) for name in algorithms}
 
     for n_idx, n in enumerate(n_values):
-        print(f"d={d}, n={n}")
+
         X = generate_svd_dataset(n=n, d=d, rank=rank, random_state=0)
 
         for name, algorithm in algorithms.items():
@@ -73,14 +73,18 @@ def benchmark_runtime(n_values, d, k=100, repeats=3, rank=20):
                 result = algorithm.select_columns(X, k=k, random_state=random_state)
                 elapsed = time.perf_counter() - start
                 runtimes[name][trial, n_idx] = elapsed
-                print(f"  {name}: " f"{elapsed:.4f} s")
+
     return runtimes
 
 
 if __name__ == "__main__":
 
-    n_values = [500, 1_000, 5_000, 10_000, 50_000]
+    # n_values = [500, 1_000, 5_000, 10_000, 50_000]
 
+    # dimensions = [50, 100, 500, 1000]
+
+    n_values = [100, 500, 1000, 10000]
+    
     dimensions = [50, 100, 500, 1000]
 
     output_dir = Path("results/runtime_scaling")

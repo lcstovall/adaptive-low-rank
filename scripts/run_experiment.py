@@ -13,8 +13,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "config",
     nargs="?",
-    default="interactions_residual.yml",
-    help="Experiment YAML file (default: interactions_residual.yml)",
+    default="interactions.yml",
+    help="Experiment YAML file (default: interactions.yml)",
 )
 args = parser.parse_args()
 config_path = ROOT / "configs" / args.config
