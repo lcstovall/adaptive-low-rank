@@ -9,31 +9,39 @@ import yaml
 
 from adaptive_low_rank.datasets import load_dataset
 
-
 ROOT = Path(__file__).resolve().parents[1]
-EXCLUDED_CONFIGS = {"mnist", "cfar10", "interactions_alpha"}
+EXCLUDED_CONFIGS = {
+    "interactions_alpha",
+    "yearprediction_alpha",
+}
 
 
 def optimal_residuals(X):
     """Return Frobenius residuals for the optimal ranks 0 through r_max."""
     X = np.asarray(X, dtype=float)
 
-    singular_values_squared = np.linalg.svdvals(X)**2
+    singular_values_squared = np.linalg.svdvals(X) ** 2
     residual_squared = np.concatenate(
-        ([singular_values_squared.sum()],
-         np.cumsum(singular_values_squared[::-1])[::-1][1:],
-         [0.0])
+        (
+            [singular_values_squared.sum()],
+            np.cumsum(singular_values_squared[::-1])[::-1][1:],
+            [0.0],
+        )
     )
     return np.sqrt(residual_squared)
 
+
 def residuals_from_svals(svals):
-    singular_values_squared = svals**2    
+    singular_values_squared = svals**2
     residual_squared = np.concatenate(
-        ([singular_values_squared.sum()],
+        (
+            [singular_values_squared.sum()],
             np.cumsum(singular_values_squared[::-1])[::-1][1:],
-            [0.0])
+            [0.0],
+        )
     )
     return np.sqrt(residual_squared)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -63,7 +71,7 @@ def main():
         dataset_name = experiment["dataset"]
         print(f"Computing optimal curve for {experiment_name} ({dataset_name})")
 
-        # if dataset_name != "interactions": continue 
+        # if dataset_name != "interactions": continue
         residuals = optimal_residuals(load_dataset(dataset_name))
         curves[experiment_name] = residuals / residuals[0]
 

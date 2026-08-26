@@ -6,11 +6,7 @@ from collections import defaultdict
 from pathlib import Path
 
 plt.rcParams.update(
-    {
-        "font.family": "serif",
-        "mathtext.fontset": "cm",
-        "axes.unicode_minus": False,
-    }
+    {"font.family": "serif", "mathtext.fontset": "cm", "axes.unicode_minus": False}
 )
 
 METHOD_MARKERS = {
@@ -99,8 +95,7 @@ def plot_residuals(results, output_dir, name="residuals"):
 
         # Normalize each residual trajectory by its initial squared norm.
         # residuals = residuals / init_res[:, None]
-        residuals = residuals / np.sqrt(init_res)[:, None]
-
+        residuals = residuals / init_res[:, None]
 
         mean = residuals.mean(axis=0)
         x = np.arange(1, len(mean) + 1)
@@ -136,18 +131,19 @@ def plot_residuals(results, output_dir, name="residuals"):
 
     ax.set_yscale("log")
 
-    if name != "interactions":
-        ymin, ymax = ax.get_ylim()
-        ax.yaxis.set_minor_locator(FixedLocator(np.geomspace(ymin, ymax, 6)))
-        ax.tick_params(axis="y", which="minor", length=0, labelleft=False)
+    # Keep minor gridlines only where the log formatter supplies a label.
+    fig.canvas.draw()
+    labeled_minor_ticks = [
+        tick.get_loc()
+        for tick in ax.yaxis.get_minor_ticks()
+        if tick.label1.get_text()
+    ]
+    ax.yaxis.set_minor_locator(FixedLocator(labeled_minor_ticks))
 
-    ax.set_xlabel("k", fontsize=13)
-    ax.set_ylabel("Normalized Residual", fontsize=13)
-    ax.tick_params(axis="both", labelsize=11)
+    ax.set_xlabel("Number of Selected Columms (k)", fontsize=13)
+    ax.set_ylabel(r"Normalized Residual ($\|R_k\|_F / \|R_0\|_F$)", fontsize=13)
 
-    ax.grid(
-        True, which="minor" if name != "interactions" else "major", axis="y", alpha=0.3
-    )
+    ax.grid(True, which="both", axis="y")
 
     ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=10, frameon=False)
 

@@ -141,7 +141,7 @@ class LowRankAlgorithm(ABC):
     @staticmethod
     def compute_v(X: np.ndarray, r: int) -> np.ndarray:
         """
-        Compute the first ``r`` right singular vectors of ``X``.
+        Compute the first ``r`` left singular vectors of ``X``.
 
         Parameters
         ----------
@@ -149,7 +149,7 @@ class LowRankAlgorithm(ABC):
             Input matrix.
 
         r : int
-            Number of right singular vectors.
+            Number of left singular vectors.
 
         Returns
         -------
@@ -157,7 +157,7 @@ class LowRankAlgorithm(ABC):
             Matrix whose columns are the first ``r`` right singular vectors.
         """
 
-        U, S, Vt = np.linalg.svd(X, full_matrices=False)
+        _,_,Vt = np.linalg.svd(X, full_matrices=False)
 
         return Vt.T[:, :r]
 
@@ -173,8 +173,8 @@ class LowRankAlgorithm(ABC):
         R : np.ndarray
             Current residual matrix.
 
-        V : np.ndarray
-            Truncated right singular vectors.
+        U : np.ndarray
+            Truncated left singular vectors.
 
         n_candidates : int
             Number of candidate columns sampled by the method.
@@ -188,30 +188,32 @@ class LowRankAlgorithm(ABC):
         if V is None:
             return None
 
-        # Compute squared norms of the residual rows used by the diagnostic.
-        row_norms_sq = np.sum(R**2, axis=1)
+        # Compute squared norms of the residual columns.
+        col_norms_sq = np.sum(R**2, axis=0)
 
-        total_norm = row_norms_sq.sum()
+        total_norm = col_norms_sq.sum()
 
         if np.isclose(total_norm, 0.0):
             return 0.0
 
-        p = row_norms_sq / total_norm
-        M = (V.T @ R) @ R.T
+        p = col_norms_sq / total_norm
+        M = (V.T @ R.T) @ R
 
         g = np.linalg.norm(M, axis=0) ** 2
 
-        g = np.divide(g, row_norms_sq, out=np.zeros_like(g), where=row_norms_sq > 1e-16)
-
-        g[row_norms_sq < 1e-16] = 0.0
+        g = np.divide(g, col_norms_sq, out=np.zeros_like(g), where=col_norms_sq > 1e-16)
+        
+        g[col_norms_sq < 1e-16] = 0.0
         order = np.argsort(g)
         g = g[order]
         p = p[order]
         F = np.cumsum(p)
 
         if n_candidates < 2501:
-            q = np.concatenate(([F[0] ** n_candidates], np.diff(F**n_candidates))) # q_i = F_i^b - F_{i-1}^b. F_n = 1, q_n = 1 - F_{n-1}^b
-            
+            q = np.concatenate(
+                ([F[0] ** n_candidates], np.diff(F**n_candidates))
+            )  # q_i = F_i^b - F_{i-1}^b. F_n = 1, q_n = 1 - F_{n-1}^b
+
         else:
             q = np.zeros_like(p)
             q[-1] = 1.0
@@ -222,7 +224,7 @@ class LowRankAlgorithm(ABC):
 
         if d_p > 0:
             return d_q / d_p - 1
-                    
+
         return 0.0
 
     @staticmethod

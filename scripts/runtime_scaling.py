@@ -84,7 +84,7 @@ if __name__ == "__main__":
     # dimensions = [50, 100, 500, 1000]
 
     n_values = [100, 500, 1000, 10000]
-    
+
     dimensions = [50, 100, 500, 1000]
 
     output_dir = Path("results/runtime_scaling")

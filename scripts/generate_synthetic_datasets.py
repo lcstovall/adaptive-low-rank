@@ -9,7 +9,6 @@ import yaml
 
 from adaptive_low_rank.datasets import generate_synthetic_dataset
 
-
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_DIR = ROOT / "configs"
 DATA_DIR = ROOT / "data"
@@ -80,9 +79,7 @@ def main():
     args = parser.parse_args()
 
     if args.pattern is None:
-        configs = sorted(
-            set(CONFIG_DIR.glob("*.yml")) | set(CONFIG_DIR.glob("*.yaml"))
-        )
+        configs = sorted(set(CONFIG_DIR.glob("*.yml")) | set(CONFIG_DIR.glob("*.yaml")))
     else:
         configs = sorted(CONFIG_DIR.glob(args.pattern))
     generated = [_generate(path, force=args.force) for path in configs]

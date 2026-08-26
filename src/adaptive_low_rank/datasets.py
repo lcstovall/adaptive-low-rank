@@ -5,9 +5,8 @@ import numpy as np
 from PIL import Image
 import graphlearning as gl
 
-def generate_synthetic_dataset(
-    decay_type, decay_param, n=2000, d=2000, random_state=0
-):
+
+def generate_synthetic_dataset(decay_type, decay_param, n=2000, d=2000, random_state=0):
     """
     Generate a synthetic matrix with prescribed singular-value decay.
 
@@ -52,9 +51,7 @@ def generate_synthetic_dataset(
         singular_values = np.exp(-decay_param * (i - 1))
 
     else:
-        raise ValueError(
-            f"Unknown decay type: {decay_type}"
-        )
+        raise ValueError(f"Unknown decay type: {decay_type}")
 
     # Normalize so ||X||_F = 1
     singular_values /= np.linalg.norm(singular_values)
@@ -73,8 +70,8 @@ def load_dataset(name):
     name : str
         Data-set identifier. Supported identifiers are ``interactions``,
         ``mnist``, ``mnistT``, ``yearprediction``, ``coil20``, ``cfar10``,
-        and ``cfar10T``. Synthetic datasets are loaded from generated files
-        named ``data/<name>.npz``.
+        ``cfar10T``, and ``new_data``. Synthetic datasets are loaded from
+        generated files named ``data/<name>.npz``.
 
     Returns
     -------
@@ -104,15 +101,15 @@ def load_dataset(name):
         with np.load(path) as data:
             return data["X"]
 
+    elif name == "cluster_expansion":
+        data = np.load(root / "data" / "cluster_expansion_M.npy")
+        indices = np.random.default_rng().choice(data.shape[0], size=5000, replace=False)
+        return data[indices, :]
+
     elif name == "mnistT":
         mnist = fetch_openml("mnist_784", as_frame=False, parser="auto")
         data = mnist["data"].astype(np.float64)
         return data.T
-
-    elif name == "mnist":
-        mnist = fetch_openml("mnist_784", as_frame=False, parser="auto")
-        data = mnist["data"].astype(np.float64)
-        return data[:1000, :]
 
     elif name == "yearprediction":
         data = np.loadtxt(root / "data" / "YearPredictionMSD.txt", delimiter=",")
@@ -133,10 +130,6 @@ def load_dataset(name):
     elif name == "cfar10T":
         data, labels = gl.datasets.load("cifar10", metric="simclr")
         return data.T
-
-    elif name == "cfar10":
-        data, labels = gl.datasets.load("cifar10", metric="simclr")
-        return data[:1000, :]
 
     else:
         raise ValueError(f"Unknown dataset '{name}'")

@@ -39,6 +39,7 @@ figures/
 data/coil-20-proc/
 data/rating.csv
 data/YearPredictionMSD.txt
+data/cluster_expansion_M.npy
 
 # Matplotlib
 .matplotlib/

@@ -27,7 +27,7 @@ def benchmark(X, runs, V=None):
     """
     results = []
 
-    X_fro_norm2 = norm(X, ord="fro") ** 2
+    X_fro_norm = norm(X, ord="fro")
 
     for run in runs:
         params = deepcopy(run)
@@ -44,7 +44,7 @@ def benchmark(X, runs, V=None):
             {
                 "algorithm": algorithm_name,
                 "parameters": {"k": k, **params},
-                "init_res": X_fro_norm2,
+                "init_res": X_fro_norm,
                 "result": result,
             }
         )

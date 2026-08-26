@@ -70,7 +70,8 @@ configured data sets, run:
 python3 scripts/plot_optimal_residuals.py
 ```
 
-The script excludes `mnist`, `cfar10`, and `interactions_alpha`. It normalizes
+The script excludes `mnist`, `cfar10`, `interactions_alpha`, and
+`yearprediction_alpha`. It normalizes
 the horizontal axis by each data set's maximum rank and the residual by its
 initial Frobenius norm, then writes
 `figures/optimal_residuals_normalized.png`. Use `--yscale log` to emphasize
