@@ -81,13 +81,13 @@ def benchmark_runtime(n_values, d, k=100, repeats=3, rank=20):
 
 if __name__ == "__main__":
 
-    # n_values = [500, 1_000, 5_000, 10_000, 50_000]
-
-    # dimensions = [50, 100, 500, 1000]
-
-    n_values = [100, 500, 1000, 10000]
+    n_values = [500, 1_000, 5_000, 10_000, 50_000]
 
     dimensions = [50, 100, 500, 1000]
+
+    # n_values = [100, 500, 1000, 10000]
+
+    # dimensions = [50, 100, 500, 1000]
 
     output_dir = Path("results/runtime_scaling")
     output_dir.mkdir(parents=True, exist_ok=True)
