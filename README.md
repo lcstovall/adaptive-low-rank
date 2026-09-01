@@ -70,27 +70,27 @@ configured data sets, run:
 python3 scripts/plot_optimal_residuals.py
 ```
 
-The script excludes `mnist`, `cfar10`, `interactions_alpha`, and
-`yearprediction_alpha`. It normalizes
-the horizontal axis by each data set's maximum rank and the residual by its
-initial Frobenius norm, then writes
+The script excludes `interactions_alpha` and `yearprediction_alpha`. It
+normalizes the horizontal axis by each data set's maximum rank and the
+residual by its initial Frobenius norm, then writes
 `figures/optimal_residuals_normalized.png`. Use `--yscale log` to emphasize
 small residual differences.
 
-## Generating a Synthetic SVD Dataset
+## Generating Synthetic Datasets
 
-Create a reproducible `2500 x 2500` matrix whose first 350 singular values
-follow an exponential decay with rate `0.1` per rank and whose remaining
-singular values are flat. Its columns contain 75 informative columns, 500
-correlated columns, and a weak-column tail scaled by `0.005`:
+Use the YAML-driven generator to create synthetic matrices for configs whose
+filenames begin with `exp` or `poly`:
 
 ```bash
-python3 scripts/generate_synthetic_dataset.py
+python3 scripts/generate_synthetic_datasets.py
 ```
 
-The output is `data/synthetic_exp4.npz`. The generator is also available as
-`generate_synthetic_svd_dataset` in `adaptive_low_rank.datasets`, and the
-deterministic default profile can be loaded with `load_dataset("synthetic_exp4")`.
+This creates `data/<config>.npz` for each matching config file. For example,
+`configs/exp1.yml` produces `data/exp1.npz`.
+
+The underlying generator is available as `generate_synthetic_dataset` in
+`adaptive_low_rank.datasets`, and a generated dataset can be loaded with
+`load_dataset("exp1")`.
 
 ---
 
@@ -101,8 +101,13 @@ adaptive-low-rank/
 │
 ├── configs/                # Experiment YAML files
 ├── data/                   # Datasets
+├── figures/                # Generated figures
+├── notebooks/              # Analysis and plotting notebooks
 ├── results/                # Saved experiment outputs
 ├── scripts/
+│   ├── generate_synthetic_datasets.py
+│   ├── plot_optimal_residuals.py
+│   ├── run_all_experiments.py
 │   └── run_experiment.py   # Main experiment runner
 │
 ├── src/
@@ -116,8 +121,11 @@ adaptive-low-rank/
 │       ├── run_generator.py
 │       └── save_results.py
 │
+├── LICENSE
 ├── pyproject.toml
-└── README.md
+├── README.md
+├── requirements.txt
+└── .gitignore
 ```
 
 ---

@@ -1,12 +1,14 @@
 import argparse
 from pathlib import Path
+
 import yaml
-from adaptive_low_rank.datasets import load_dataset
+
 from adaptive_low_rank.algorithms import LowRankAlgorithm
 from adaptive_low_rank.benchmark import benchmark
-from adaptive_low_rank.save_results import save_results
-from adaptive_low_rank.run_generator import generate_runs
+from adaptive_low_rank.datasets import load_dataset
 from adaptive_low_rank.plotting import *
+from adaptive_low_rank.run_generator import generate_runs
+from adaptive_low_rank.save_results import save_results
 
 ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()

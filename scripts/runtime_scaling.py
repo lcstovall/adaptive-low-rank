@@ -1,7 +1,9 @@
-import time
 import pickle
-import numpy as np
+import time
 from pathlib import Path
+
+import numpy as np
+
 from adaptive_low_rank.algorithms import Adaptive, BatchMax, Greedy, GreedyPP
 
 
@@ -70,7 +72,7 @@ def benchmark_runtime(n_values, d, k=100, repeats=3, rank=20):
             for trial in range(repeats):
                 random_state = trial
                 start = time.perf_counter()
-                result = algorithm.select_columns(X, k=k, random_state=random_state)
+                algorithm.select_columns(X, k=k, random_state=random_state)
                 elapsed = time.perf_counter() - start
                 runtimes[name][trial, n_idx] = elapsed
 

@@ -1,8 +1,8 @@
 """Generate synthetic datasets described by experiment YAML files."""
 
 import argparse
-from pathlib import Path
 import re
+from pathlib import Path
 
 import numpy as np
 import yaml

@@ -1,9 +1,10 @@
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-from matplotlib.ticker import FixedLocator
-import numpy as np
 from collections import defaultdict
 from pathlib import Path
+
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.ticker import FixedLocator
 
 plt.rcParams.update(
     {"font.family": "serif", "mathtext.fontset": "cm", "axes.unicode_minus": False}
@@ -75,13 +76,13 @@ def plot_residuals(results, output_dir, name="residuals"):
         grouped[key].append({"result": run["result"], "init_res": run["init_res"]})
 
     color_cycle = plt.rcParams["axes.prop_cycle"].by_key()["color"]
-    algorithm_names = sorted({alg for alg, _ in grouped.keys()})
+    algorithm_names = sorted({alg for alg, _ in grouped})
     base_colors = {
         alg: color_cycle[i % len(color_cycle)] for i, alg in enumerate(algorithm_names)
     }
 
     algorithm_counts = defaultdict(int)
-    for algorithm, _ in grouped.keys():
+    for algorithm, _ in grouped:
         algorithm_counts[algorithm] += 1
 
     grouped = dict(sorted(grouped.items(), key=lambda item: _is_batch_max(item[0][0])))
@@ -93,8 +94,6 @@ def plot_residuals(results, output_dir, name="residuals"):
         residuals = np.array([run["result"].residuals for run in runs])
         init_res = np.array([run["init_res"] for run in runs])
 
-        # Normalize each residual trajectory by its initial squared norm.
-        # residuals = residuals / init_res[:, None]
         residuals = residuals / init_res[:, None]
 
         mean = residuals.mean(axis=0)
@@ -110,7 +109,11 @@ def plot_residuals(results, output_dir, name="residuals"):
         color = (1 - t) * base + t * np.ones(3)
         marker = _marker_for_algorithm(algorithm)
 
-        label = algorithm.replace("_", " ").title()
+        label = (
+            "Greedy++"
+            if algorithm == "greedy_pp"
+            else algorithm.replace("_", " ").title()
+        )
 
         ax.plot(
             x,
@@ -131,17 +134,14 @@ def plot_residuals(results, output_dir, name="residuals"):
 
     ax.set_yscale("log")
 
-    # Keep minor gridlines only where the log formatter supplies a label.
     fig.canvas.draw()
     labeled_minor_ticks = [
-        tick.get_loc()
-        for tick in ax.yaxis.get_minor_ticks()
-        if tick.label1.get_text()
+        tick.get_loc() for tick in ax.yaxis.get_minor_ticks() if tick.label1.get_text()
     ]
     ax.yaxis.set_minor_locator(FixedLocator(labeled_minor_ticks))
 
-    ax.set_xlabel("Number of Selected Columms (k)", fontsize=13)
-    ax.set_ylabel(r"Normalized Residual ($\|R_k\|_F / \|R_0\|_F$)", fontsize=13)
+    ax.set_xlabel(r"Number of Selected Columms (k)", fontsize=13)
+    ax.set_ylabel(r"Normalized Residual $(\|R_k\|_F / \|R_0\|_F)$", fontsize=13)
 
     ax.grid(True, which="both", axis="y")
 
@@ -255,6 +255,11 @@ def plot_alphas(results, output_dir, name="alphas"):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    if name.endswith(("_alpha", "_alphas")):
+        output_name = name
+    else:
+        output_name = f"{name}_alphas"
+
     grouped = defaultdict(list)
 
     for run in results:
@@ -277,7 +282,7 @@ def plot_alphas(results, output_dir, name="alphas"):
 
     color_cycle = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
-    algorithm_names = sorted({algorithm for algorithm, _ in grouped.keys()})
+    algorithm_names = sorted({algorithm for algorithm, _ in grouped})
 
     base_colors = {
         algorithm: color_cycle[i % len(color_cycle)]
@@ -286,7 +291,7 @@ def plot_alphas(results, output_dir, name="alphas"):
 
     algorithm_counts = defaultdict(int)
 
-    for algorithm, _ in grouped.keys():
+    for algorithm, _ in grouped:
         algorithm_counts[algorithm] += 1
 
     # Sort groups by algorithm and then by the candidate count.
@@ -329,7 +334,11 @@ def plot_alphas(results, output_dir, name="alphas"):
 
         marker = _marker_for_algorithm(algorithm)
 
-        label = algorithm.replace("_", " ").title()
+        label = (
+            "Greedy++"
+            if algorithm == "greedy_pp"
+            else algorithm.replace("_", " ").title()
+        )
 
         if "n_candidates" in params:
             label += f" ($n_{{candidates}}={params['n_candidates']}$)"
@@ -358,6 +367,6 @@ def plot_alphas(results, output_dir, name="alphas"):
 
     fig.subplots_adjust(right=0.75, left=0.10, bottom=0.12, top=0.97)
 
-    fig.savefig(output_dir / f"{name}_alphas.png", dpi=300, bbox_inches="tight")
+    fig.savefig(output_dir / f"{output_name}.png", dpi=300, bbox_inches="tight")
 
     plt.show()

@@ -10,10 +10,7 @@ import yaml
 from adaptive_low_rank.datasets import load_dataset
 
 ROOT = Path(__file__).resolve().parents[1]
-EXCLUDED_CONFIGS = {
-    "interactions_alpha",
-    "yearprediction_alpha",
-}
+EXCLUDED_CONFIGS = {"interactions_alpha", "yearprediction_alpha"}
 
 
 def optimal_residuals(X):

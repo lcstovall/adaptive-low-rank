@@ -1,9 +1,10 @@
 from pathlib import Path
-from scipy.io import loadmat
-from sklearn.datasets import fetch_openml
+
+import graphlearning as gl
 import numpy as np
 from PIL import Image
-import graphlearning as gl
+from scipy.io import loadmat
+from sklearn.datasets import fetch_openml
 
 
 def generate_synthetic_dataset(decay_type, decay_param, n=2000, d=2000, random_state=0):
@@ -91,7 +92,7 @@ def load_dataset(name):
         data = loadmat(root / "data" / "interactions.mat")["B"]
         return data
 
-    elif name.startswith("poly") or name.startswith("exp"):
+    elif name.startswith(("poly", "exp")):
         path = root / "data" / f"{name}.npz"
         if not path.exists():
             raise FileNotFoundError(
@@ -103,7 +104,9 @@ def load_dataset(name):
 
     elif name == "cluster_expansion":
         data = np.load(root / "data" / "cluster_expansion_M.npy")
-        indices = np.random.default_rng().choice(data.shape[0], size=5000, replace=False)
+        indices = np.random.default_rng().choice(
+            data.shape[0], size=5000, replace=False
+        )
         return data[indices, :]
 
     elif name == "mnistT":
@@ -128,7 +131,7 @@ def load_dataset(name):
         return data
 
     elif name == "cfar10T":
-        data, labels = gl.datasets.load("cifar10", metric="simclr")
+        data, _labels = gl.datasets.load("cifar10", metric="simclr")
         return data.T
 
     else:

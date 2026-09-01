@@ -1,9 +1,9 @@
 """Run every experiment configuration in the configs directory."""
 
 import argparse
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_DIR = ROOT / "configs"
@@ -37,7 +37,7 @@ def main() -> int:
     for config_path in configs:
         print(f"\n=== Running {config_path.name} ===", flush=True)
         completed = subprocess.run(
-            [sys.executable, str(RUNNER), config_path.name], cwd=ROOT
+            [sys.executable, str(RUNNER), config_path.name], cwd=ROOT, check=False
         )
         if completed.returncode == 0:
             print(f"=== Completed {config_path.name} ===", flush=True)

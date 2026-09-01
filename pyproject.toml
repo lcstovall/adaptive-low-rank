@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "adaptive_low_rank"
 version = "0.1.0"
-description = "Algorithms for low-rank matrix approximation"
+description = "Adaptive algorithms for low-rank matrix approximation"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {file = "LICENSE"}

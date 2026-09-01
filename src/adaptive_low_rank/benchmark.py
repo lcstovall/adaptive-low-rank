@@ -1,6 +1,8 @@
 from copy import deepcopy
-from adaptive_low_rank.registry import ALGORITHMS
+
 from numpy.linalg import norm
+
+from adaptive_low_rank.registry import ALGORITHMS
 
 
 def benchmark(X, runs, V=None):

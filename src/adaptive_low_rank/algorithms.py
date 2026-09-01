@@ -1,8 +1,10 @@
 from __future__ import annotations
+
 import time
 from abc import ABC, abstractmethod
-from typing import Optional
+
 import numpy as np
+
 from adaptive_low_rank.results import AlgorithmResult
 
 
@@ -15,9 +17,9 @@ class LowRankAlgorithm(ABC):
         self,
         X: np.ndarray,
         k: int,
-        random_state: Optional[np.random.RandomState | int] = None,
-        n_candidates: Optional[int] = None,
-        V: Optional[np.ndarray] = None,
+        random_state: np.random.RandomState | int | None = None,
+        n_candidates: int | None = None,
+        V: np.ndarray | None = None,
         compute_alpha: bool = False,
         compute_runtime: bool = False,
     ) -> AlgorithmResult:
@@ -63,7 +65,7 @@ class LowRankAlgorithm(ABC):
         indices = np.full(k, -1, dtype=int)
 
         residuals: list[float] = []
-        alphas: list[Optional[float]] = []
+        alphas: list[float | None] = []
         times: list[float] = []
 
         start = time.perf_counter() if compute_runtime else None
@@ -108,10 +110,10 @@ class LowRankAlgorithm(ABC):
         R: np.ndarray,
         k: int,
         random_state: np.random.RandomState,
-        n_candidates: Optional[int] = None,
-        V: Optional[np.ndarray] = None,
+        n_candidates: int | None = None,
+        V: np.ndarray | None = None,
         compute_alpha: bool = False,
-    ) -> tuple[int, Optional[float]]:
+    ) -> tuple[int, float | None]:
         """Return the next column index and an optional alpha diagnostic.
 
         Parameters
@@ -136,7 +138,6 @@ class LowRankAlgorithm(ABC):
         alpha : float or None
             Alpha diagnostic, if computed by the implementation.
         """
-        pass
 
     @staticmethod
     def compute_v(X: np.ndarray, r: int) -> np.ndarray:
@@ -157,14 +158,12 @@ class LowRankAlgorithm(ABC):
             Matrix whose columns are the first ``r`` right singular vectors.
         """
 
-        _,_,Vt = np.linalg.svd(X, full_matrices=False)
+        _, _, Vt = np.linalg.svd(X, full_matrices=False)
 
         return Vt.T[:, :r]
 
     @staticmethod
-    def _compute_alpha(
-        R: np.ndarray, V: np.ndarray, n_candidates: int
-    ) -> Optional[float]:
+    def _compute_alpha(R: np.ndarray, V: np.ndarray, n_candidates: int) -> float | None:
         """
         Compute the alpha diagnostic for the current iteration.
 
@@ -202,7 +201,7 @@ class LowRankAlgorithm(ABC):
         g = np.linalg.norm(M, axis=0) ** 2
 
         g = np.divide(g, col_norms_sq, out=np.zeros_like(g), where=col_norms_sq > 1e-16)
-        
+
         g[col_norms_sq < 1e-16] = 0.0
         order = np.argsort(g)
         g = g[order]
@@ -262,10 +261,10 @@ class Adaptive(LowRankAlgorithm):
         R: np.ndarray,
         k: int,
         random_state: np.random.RandomState,
-        n_candidates: Optional[int] = None,
-        V: Optional[np.ndarray] = None,
+        n_candidates: int | None = None,
+        V: np.ndarray | None = None,
         compute_alpha: bool = False,
-    ) -> tuple[int, Optional[float]]:
+    ) -> tuple[int, float | None]:
 
         if n_candidates is None:
             n_candidates = 1
@@ -300,10 +299,10 @@ class BatchMax(LowRankAlgorithm):
         R: np.ndarray,
         k: int,
         random_state: np.random.RandomState,
-        n_candidates: Optional[int] = None,
-        V: Optional[np.ndarray] = None,
+        n_candidates: int | None = None,
+        V: np.ndarray | None = None,
         compute_alpha: bool = False,
-    ) -> tuple[int, Optional[float]]:
+    ) -> tuple[int, float | None]:
 
         n_samples = R.shape[1]
 
@@ -359,10 +358,10 @@ class Greedy(LowRankAlgorithm):
         R: np.ndarray,
         k: int,
         random_state: np.random.RandomState,
-        n_candidates: Optional[int] = None,
-        V: Optional[np.ndarray] = None,
+        n_candidates: int | None = None,
+        V: np.ndarray | None = None,
         compute_alpha: bool = False,
-    ) -> tuple[int, Optional[float]]:
+    ) -> tuple[int, float | None]:
 
         RR = R @ R.T
 
@@ -389,10 +388,10 @@ class GreedyPP(LowRankAlgorithm):
         R: np.ndarray,
         k: int,
         random_state: np.random.RandomState,
-        n_candidates: Optional[int] = None,
-        V: Optional[np.ndarray] = None,
+        n_candidates: int | None = None,
+        V: np.ndarray | None = None,
         compute_alpha: bool = False,
-    ) -> tuple[int, Optional[float]]:
+    ) -> tuple[int, float | None]:
 
         n_samples = R.shape[1]
 
@@ -428,10 +427,10 @@ class Random(LowRankAlgorithm):
         R: np.ndarray,
         k: int,
         random_state: np.random.RandomState,
-        n_candidates: Optional[int] = None,
-        V: Optional[np.ndarray] = None,
+        n_candidates: int | None = None,
+        V: np.ndarray | None = None,
         compute_alpha: bool = False,
-    ) -> tuple[int, Optional[float]]:
+    ) -> tuple[int, float | None]:
 
         column_norms = np.linalg.norm(R, axis=0)
 
