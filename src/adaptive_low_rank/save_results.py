@@ -33,10 +33,10 @@ def save_results(results, config_path, output_dir):
 
     shutil.copy2(config_path, output_dir / "config.yml")
 
-    save_alpha = any(
-        hasattr(run["result"], "alphas")
-        and run["result"].alphas is not None
-        and not np.all(np.isnan(run["result"].alphas))
+    save_gains = any(
+        hasattr(run["result"], "gains_bm")
+        and run["result"].gains_bm is not None
+        and not np.all(np.isnan(run["result"].gains_bm))
         for run in results
     )
 
@@ -54,8 +54,9 @@ def save_results(results, config_path, output_dir):
         if result.runtimes.size:
             row["runtime"] = result.runtimes[-1]
 
-        if save_alpha:
-            row["final_alpha"] = result.alphas[-1]
+        if save_gains:
+            row["final_gains_bm"] = result.gains_bm[-1]
+            row["final_gains_as"] = result.gains_as[-1]
 
         rows.append(row)
 

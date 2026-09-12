@@ -57,7 +57,7 @@ class LowRankAlgorithm(ABC):
         -------
         AlgorithmResult
             Selected column indices, residual Frobenius norms, optional
-            cumulative runtimes, and optional alpha values.
+            cumulative runtimes, and optional gain diagnostics.
         """
 
         R = self._as_matrix(X.copy())
@@ -65,7 +65,8 @@ class LowRankAlgorithm(ABC):
         indices = np.full(k, -1, dtype=int)
 
         residuals: list[float] = []
-        alphas: list[float | None] = []
+        gains_bm: list[float | None] = []
+        gains_as: list[float | None] = []
         times: list[float] = []
 
         start = time.perf_counter() if compute_runtime else None
@@ -83,10 +84,16 @@ class LowRankAlgorithm(ABC):
         # Select and project out one column at each iteration.
         for c in range(k):
 
-            idx, alpha = self.select_index(R, k, rng, n_candidates, V, compute_alpha)
+            idx, gains = self.select_index(R, k, rng, n_candidates, V, compute_alpha)
 
             indices[c] = idx
-            alphas.append(alpha)
+
+            if gains is None:
+                gains_bm.append(None)
+                gains_as.append(None)
+            else:
+                gains_bm.append(gains[0])
+                gains_as.append(gains[1])
 
             # Remove the component in the direction of the selected column.
             R = self._project_out(R, R[:, idx])
@@ -101,7 +108,8 @@ class LowRankAlgorithm(ABC):
             indices=indices,
             residuals=np.asarray(residuals),
             runtimes=np.asarray(times),
-            alphas=np.asarray(alphas, dtype=float),
+            gains_bm=np.asarray(gains_bm, dtype=float),
+            gains_as=np.asarray(gains_as, dtype=float),
         )
 
     @abstractmethod
@@ -113,8 +121,8 @@ class LowRankAlgorithm(ABC):
         n_candidates: int | None = None,
         V: np.ndarray | None = None,
         compute_alpha: bool = False,
-    ) -> tuple[int, float | None]:
-        """Return the next column index and an optional alpha diagnostic.
+    ) -> tuple[int, tuple[float, float] | None]:
+        """Return the next column index and optional gain diagnostics.
 
         Parameters
         ----------
@@ -135,8 +143,8 @@ class LowRankAlgorithm(ABC):
         -------
         index : int
             Index of the selected column.
-        alpha : float or None
-            Alpha diagnostic, if computed by the implementation.
+        gains : tuple[float, float] or None
+            Batch-max and adaptive-sampling gains, if computed.
         """
 
     @staticmethod
@@ -163,7 +171,9 @@ class LowRankAlgorithm(ABC):
         return Vt.T[:, :r]
 
     @staticmethod
-    def _compute_alpha(R: np.ndarray, V: np.ndarray, n_candidates: int) -> float | None:
+    def _compute_alpha(
+        R: np.ndarray, V: np.ndarray, n_candidates: int
+    ) -> tuple[float, float] | None:
         """
         Compute the alpha diagnostic for the current iteration.
 
@@ -180,8 +190,8 @@ class LowRankAlgorithm(ABC):
 
         Returns
         -------
-        float or None
-            Alpha value.
+        tuple[float, float] or None
+            Batch-max and adaptive-sampling gains, respectively.
         """
 
         if V is None:
@@ -221,10 +231,7 @@ class LowRankAlgorithm(ABC):
 
         d_p = np.sum(p * g)
 
-        if d_p > 0:
-            return d_q / d_p - 1
-
-        return 0.0
+        return d_q, d_p
 
     @staticmethod
     def _as_matrix(X: np.ndarray) -> np.ndarray:
@@ -264,7 +271,7 @@ class Adaptive(LowRankAlgorithm):
         n_candidates: int | None = None,
         V: np.ndarray | None = None,
         compute_alpha: bool = False,
-    ) -> tuple[int, float | None]:
+    ) -> tuple[int, tuple[float, float] | None]:
 
         if n_candidates is None:
             n_candidates = 1
@@ -281,12 +288,12 @@ class Adaptive(LowRankAlgorithm):
 
         idx = int(np.searchsorted(cumulative, rand_val))
 
-        alpha = None
+        gains = None
 
         if compute_alpha and V is not None:
-            alpha = self._compute_alpha(R, V, n_candidates)
+            gains = self._compute_alpha(R, V, n_candidates)
 
-        return (min(idx, R.shape[1] - 1), alpha)
+        return (min(idx, R.shape[1] - 1), gains)
 
 
 class BatchMax(LowRankAlgorithm):
@@ -302,7 +309,7 @@ class BatchMax(LowRankAlgorithm):
         n_candidates: int | None = None,
         V: np.ndarray | None = None,
         compute_alpha: bool = False,
-    ) -> tuple[int, float | None]:
+    ) -> tuple[int, tuple[float, float] | None]:
 
         n_samples = R.shape[1]
 
@@ -340,12 +347,12 @@ class BatchMax(LowRankAlgorithm):
 
         best_idx = int(np.argmax(scores))
 
-        alpha = None
+        gains = None
 
         if compute_alpha and V is not None:
-            alpha = self._compute_alpha(R, V, n_candidates)
+            gains = self._compute_alpha(R, V, n_candidates)
 
-        return (int(candidate_ids[best_idx]), alpha)
+        return (int(candidate_ids[best_idx]), gains)
 
 
 class Greedy(LowRankAlgorithm):
@@ -415,6 +422,31 @@ class GreedyPP(LowRankAlgorithm):
         best_idx = int(np.argmax(scores))
 
         return (int(candidate_ids[best_idx]), None)
+
+
+class Sequential(LowRankAlgorithm):
+    """Select columns in their original order, starting with column zero."""
+
+    name = "sequential_selection"
+
+    def select_columns(self, *args, **kwargs) -> AlgorithmResult:
+        self._next_index = 0
+
+        return super().select_columns(*args, **kwargs)
+
+    def select_index(
+        self,
+        R: np.ndarray,
+        k: int,
+        random_state: np.random.RandomState,
+        n_candidates: int | None = None,
+        V: np.ndarray | None = None,
+        compute_alpha: bool = False,
+    ) -> tuple[int, float | None]:
+        index = self._next_index
+        self._next_index += 1
+
+        return index, None
 
 
 class Random(LowRankAlgorithm):

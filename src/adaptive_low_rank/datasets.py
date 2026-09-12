@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import graphlearning as gl
 import numpy as np
 from PIL import Image
 from scipy.io import loadmat
@@ -102,6 +101,10 @@ def load_dataset(name):
         with np.load(path) as data:
             return data["X"]
 
+    elif (root / "data" / f"{name}.npz").exists():
+        with np.load(root / "data" / f"{name}.npz") as data:
+            return data["X"]
+
     elif name == "cluster_expansion":
         data = np.load(root / "data" / "cluster_expansion_M.npy")
         indices = np.random.default_rng().choice(
@@ -131,7 +134,9 @@ def load_dataset(name):
         return data
 
     elif name == "cfar10T":
-        data, _labels = gl.datasets.load("cifar10", metric="simclr")
+        data_path = root / "data" / "cifar10_simclr.npz"
+        with np.load(data_path) as archive:
+            data = archive["data"]
         return data.T
 
     else:

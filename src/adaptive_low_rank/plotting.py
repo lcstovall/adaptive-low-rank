@@ -46,7 +46,13 @@ def _marker_positions(length, max_markers=20):
     return np.arange(0, length, spacing)
 
 
-def plot_residuals(results, output_dir, name="residuals"):
+def plot_residuals(
+    results,
+    output_dir,
+    name="residuals",
+    n_candidates=None,
+    compute_optimal=False,
+):
     """
     Plot normalized residual curves.
 
@@ -61,15 +67,43 @@ def plot_residuals(results, output_dir, name="residuals"):
     name : str, default="residuals"
         Filename stem for the saved figures.
 
+    n_candidates : int, optional
+        Batch Max candidate count to plot. If omitted, only the first
+        ``n_candidates`` value encountered for Batch Max is plotted. Other
+        algorithms are unaffected.
+
+    compute_optimal : bool, default=False
+        Whether to compute and plot the optimal rank-k SVD residual curve.
+        When enabled, ``name`` must be the dataset name understood by
+        :func:`adaptive_low_rank.datasets.load_dataset`.
+
     """
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    if n_candidates is None:
+        n_candidates = next(
+            (
+                run["parameters"]["n_candidates"]
+                for run in results
+                if _is_batch_max(run["algorithm"])
+                and "n_candidates" in run["parameters"]
+            ),
+            None,
+        )
+
     grouped = defaultdict(list)
 
     # Group repeated runs after removing the random seed from the key.
     for run in results:
+        if (
+            _is_batch_max(run["algorithm"])
+            and n_candidates is not None
+            and run["parameters"].get("n_candidates") != n_candidates
+        ):
+            continue
+
         params = run["parameters"].copy()
         params.pop("random_state", None)
         key = (run["algorithm"], tuple(sorted(params.items())))
@@ -132,6 +166,32 @@ def plot_residuals(results, output_dir, name="residuals"):
 
             ax.fill_between(x, mean - std, mean + std, color=color, alpha=0.10)
 
+    if compute_optimal:
+        from adaptive_low_rank.datasets import load_dataset
+
+        X = load_dataset(name)
+        singular_values = np.linalg.svd(X, compute_uv=False)
+        residual_squared = np.concatenate(
+            (
+                [np.sum(singular_values**2)],
+                np.cumsum(singular_values[::-1] ** 2)[::-1][1:],
+            )
+        )
+        optimal = np.sqrt(residual_squared)
+        max_rank = max(len(run["result"].residuals) for run in results)
+        optimal = optimal[: max_rank + 1] / optimal[0]
+        optimal_values = optimal[1:]
+        optimal_values[optimal_values <= 0] = np.nan
+
+        ax.plot(
+            np.arange(1, len(optimal_values) + 1),
+            optimal_values,
+            color="black",
+            linestyle="--",
+            linewidth=2.0,
+            label="Rank-$k$ trunc. SVD",
+        )
+
     ax.set_yscale("log")
 
     fig.canvas.draw()
@@ -140,7 +200,7 @@ def plot_residuals(results, output_dir, name="residuals"):
     ]
     ax.yaxis.set_minor_locator(FixedLocator(labeled_minor_ticks))
 
-    ax.set_xlabel(r"Number of Selected Columms (k)", fontsize=13)
+    ax.set_xlabel(r"Number of Selected Columms ($k$)", fontsize=13)
     ax.set_ylabel(r"Normalized Residual $(\|R_k\|_F / \|R_0\|_F)$", fontsize=13)
 
     ax.grid(True, which="both", axis="y")
@@ -264,10 +324,10 @@ def plot_alphas(results, output_dir, name="alphas"):
 
     for run in results:
 
-        if run["result"].alphas is None:
+        if run["result"].gains_bm is None or run["result"].gains_as is None:
             continue
 
-        if np.all(np.isnan(run["result"].alphas)):
+        if np.all(np.isnan(run["result"].gains_bm)):
             continue
 
         params = run["parameters"].copy()
@@ -308,17 +368,22 @@ def plot_alphas(results, output_dir, name="alphas"):
 
     # Track the shade used for each parameter setting.
     algorithm_indices = defaultdict(int)
+    line_markers = ["o", "s", "^", "D", "*", "P", "v", "<", ">", "h"]
 
     fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
 
-    for (algorithm, params), runs in grouped.items():
+    for line_index, ((algorithm, params), runs) in enumerate(grouped.items()):
 
         params = dict(params)
 
-        alphas = np.array([r.alphas for r in runs], dtype=float)
+        gains_bm = np.array([r.gains_bm for r in runs], dtype=float)
+        gains_as = np.array([r.gains_as for r in runs], dtype=float)
 
-        mean = np.nanmean(alphas, axis=0)
-        std = np.nanstd(alphas, axis=0)
+        ratios = gains_bm / gains_as - 1
+        mean_gains_bm = np.nanmean(gains_bm, axis=0)
+        mean_gains_as = np.nanmean(gains_as, axis=0)
+        mean = mean_gains_bm / mean_gains_as - 1
+        std = np.nanstd(ratios, axis=0)
         x = np.arange(1, len(mean) + 1)
 
         base = np.array(mcolors.to_rgb(base_colors[algorithm]))
@@ -328,11 +393,11 @@ def plot_alphas(results, output_dir, name="alphas"):
         algorithm_indices[algorithm] += 1
 
         # Use lighter shades for additional candidate-count settings.
-        t = 0.15 + 0.55 * i / max(n - 1, 1)
+        t = 0.08 + 0.55 * i / max(n - 1, 1)
 
         color = (1 - t) * base + t * np.ones(3)
 
-        marker = _marker_for_algorithm(algorithm)
+        marker = line_markers[line_index % len(line_markers)]
 
         label = (
             "Greedy++"
@@ -348,8 +413,8 @@ def plot_alphas(results, output_dir, name="alphas"):
             mean,
             color=color,
             marker=marker,
-            markevery=_marker_positions(len(x)),
-            markersize=4,
+            markevery=_marker_positions(len(x), max_markers=30),
+            markersize=6,
             label=label,
         )
 

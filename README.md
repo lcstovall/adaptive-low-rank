@@ -14,6 +14,7 @@ This repository provides a common framework for implementing, comparing, and eva
   - Greedy
   - Greedy++
   - Random Selection
+  - Sequential Selection
 - Configurable experiments using YAML
 - Automatic benchmarking across parameter grids
 - Publication-quality plots of
@@ -138,7 +139,6 @@ Example:
 
 ```yaml
 dataset: interactions
-name: interactions_residual
 
 r: 50
 

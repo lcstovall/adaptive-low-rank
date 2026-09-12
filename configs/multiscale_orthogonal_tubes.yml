@@ -1,0 +1,32 @@
+dataset_type: multiscale
+dataset: multiscale_orthogonal_tubes
+model: orthogonal_tubes
+n_clusters: 64
+columns_per_cluster: 8
+condition_number: 1.0e4
+tube_dim: 3
+eta: 0.03
+seed: 0
+
+algorithms:
+
+  adaptive:
+    k: [300]
+    random_state: [0,1,2,3,4,5,6,7,8,9,10]
+
+  greedy:
+    k: [300]
+
+  random:
+    k: [300]
+    random_state: [0,1,2,3,4,5,6,7,8,9,10]
+
+  batch_max:
+    k: [300]
+    random_state: [0,1,2,3,4,5,6,7,8,9,10]
+    n_candidates: [10]
+
+  greedy_pp:
+    k: [300]
+    random_state: [0,1,2,3,4,5,6,7,8,9,10]
+    n_candidates: [10]

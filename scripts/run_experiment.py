@@ -34,6 +34,6 @@ runs = generate_runs(experiment)
 
 results = benchmark(X=X, runs=runs, V=V)
 
-output_dir = ROOT / "results" / experiment["name"]
+output_dir = ROOT / "results" / experiment["dataset"]
 
 save_results(results, config_path, output_dir)

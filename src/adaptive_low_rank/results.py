@@ -16,12 +16,16 @@ class AlgorithmResult:
     runtimes : np.ndarray
         Cumulative elapsed times after each selection, or an empty array when
         runtime measurement is disabled.
-    alphas : np.ndarray
-        Alpha diagnostics recorded after each selection; entries are NaN when
-        an alpha diagnostic is not available.
+    gains_bm : np.ndarray
+        Batch-max gains recorded after each selection; entries are NaN when
+        the diagnostic is not available.
+    gains_as : np.ndarray
+        Adaptive-sampling gains recorded after each selection; entries are NaN
+        when the diagnostic is not available.
     """
 
     indices: np.ndarray
     residuals: np.ndarray
     runtimes: np.ndarray
-    alphas: list[float | None]
+    gains_bm: np.ndarray
+    gains_as: np.ndarray

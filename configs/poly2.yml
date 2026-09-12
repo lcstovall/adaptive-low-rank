@@ -1,5 +1,4 @@
 dataset: poly2
-name: poly2
 decay_type: poly
 decay_param: 2
 random_state: 0

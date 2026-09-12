@@ -1,5 +1,5 @@
 dataset: cfar10T
-name: cfar10T
+r: 50
 
 algorithms:
 
@@ -17,7 +17,8 @@ algorithms:
   batch_max:
     k: [120]
     random_state: [0,1,2,3,4,5,6,7,8,9]
-    n_candidates: [10]
+    n_candidates: [10,50,500]
+    compute_alpha: true
 
   greedy_pp:
     k: [120]

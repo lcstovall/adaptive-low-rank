@@ -1,5 +1,4 @@
 dataset: exp1
-name: exp1
 decay_type: exp
 decay_param: 1
 random_state: 0

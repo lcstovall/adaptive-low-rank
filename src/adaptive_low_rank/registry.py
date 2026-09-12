@@ -1,4 +1,4 @@
-from .algorithms import Adaptive, BatchMax, Greedy, GreedyPP, Random
+from .algorithms import Adaptive, BatchMax, Greedy, GreedyPP, Random, Sequential
 
 ALGORITHMS = {
     "adaptive": Adaptive,
@@ -6,4 +6,5 @@ ALGORITHMS = {
     "greedy": Greedy,
     "greedy_pp": GreedyPP,
     "random": Random,
+    "sequential": Sequential,
 }
