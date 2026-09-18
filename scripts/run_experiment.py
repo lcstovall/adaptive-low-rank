@@ -27,12 +27,9 @@ with open(config_path) as f:
 
 X = load_dataset(experiment["dataset"])
 
-V = None
-if "r" in experiment:
-    V = LowRankAlgorithm.compute_v(X, experiment["r"])
 runs = generate_runs(experiment)
 
-results = benchmark(X=X, runs=runs, V=V)
+results = benchmark(X=X, runs=runs)
 
 output_dir = ROOT / "results" / experiment["dataset"]
 

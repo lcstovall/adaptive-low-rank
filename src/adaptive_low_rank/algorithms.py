@@ -148,31 +148,8 @@ class LowRankAlgorithm(ABC):
         """
 
     @staticmethod
-    def compute_v(X: np.ndarray, r: int) -> np.ndarray:
-        """
-        Compute the first ``r`` left singular vectors of ``X``.
-
-        Parameters
-        ----------
-        X : np.ndarray
-            Input matrix.
-
-        r : int
-            Number of left singular vectors.
-
-        Returns
-        -------
-        V : np.ndarray
-            Matrix whose columns are the first ``r`` right singular vectors.
-        """
-
-        _, _, Vt = np.linalg.svd(X, full_matrices=False)
-
-        return Vt.T[:, :r]
-
-    @staticmethod
     def _compute_alpha(
-        R: np.ndarray, V: np.ndarray, n_candidates: int
+        R: np.ndarray, n_candidates: int
     ) -> tuple[float, float] | None:
         """
         Compute the alpha diagnostic for the current iteration.
@@ -182,9 +159,6 @@ class LowRankAlgorithm(ABC):
         R : np.ndarray
             Current residual matrix.
 
-        U : np.ndarray
-            Truncated left singular vectors.
-
         n_candidates : int
             Number of candidate columns sampled by the method.
 
@@ -193,45 +167,28 @@ class LowRankAlgorithm(ABC):
         tuple[float, float] or None
             Batch-max and adaptive-sampling gains, respectively.
         """
+        C = R @ R.T
+        e_p = np.sum(np.diag(C@C)) / np.sum(np.diag(C))
+        col_norms_sq = np.linalg.norm(R, axis=0) ** 2
 
-        if V is None:
-            return None
+        if np.isclose(col_norms_sq.sum(), 0.0):
+            return None, None
 
-        # Compute squared norms of the residual columns.
-        col_norms_sq = np.sum(R**2, axis=0)
-
-        total_norm = col_norms_sq.sum()
-
-        if np.isclose(total_norm, 0.0):
-            return 0.0
-
-        p = col_norms_sq / total_norm
-        M = (V.T @ R.T) @ R
-
-        g = np.linalg.norm(M, axis=0) ** 2
+        p = col_norms_sq / np.sum(col_norms_sq)
+        g = (R * (C @ R)).sum(axis=0)
 
         g = np.divide(g, col_norms_sq, out=np.zeros_like(g), where=col_norms_sq > 1e-16)
-
         g[col_norms_sq < 1e-16] = 0.0
-        order = np.argsort(g)
-        g = g[order]
-        p = p[order]
-        F = np.cumsum(p)
 
-        if n_candidates < 2501:
-            q = np.concatenate(
-                ([F[0] ** n_candidates], np.diff(F**n_candidates))
-            )  # q_i = F_i^b - F_{i-1}^b. F_n = 1, q_n = 1 - F_{n-1}^b
+        ordering = np.argsort(g)
+        g = g[ordering]
+        p = p[ordering]
+        Fb = np.cumsum(np.concatenate(([0], p)))**n_candidates
 
-        else:
-            q = np.zeros_like(p)
-            q[-1] = 1.0
+        q = Fb[1:] - Fb[:-1]
+        e_q = np.sum(q * g)
 
-        d_q = np.sum(q * g)
-
-        d_p = np.sum(p * g)
-
-        return d_q, d_p
+        return e_q, e_p
 
     @staticmethod
     def _as_matrix(X: np.ndarray) -> np.ndarray:
@@ -288,12 +245,7 @@ class Adaptive(LowRankAlgorithm):
 
         idx = int(np.searchsorted(cumulative, rand_val))
 
-        gains = None
-
-        if compute_alpha and V is not None:
-            gains = self._compute_alpha(R, V, n_candidates)
-
-        return (min(idx, R.shape[1] - 1), gains)
+        return (min(idx, R.shape[1] - 1), None)
 
 
 class BatchMax(LowRankAlgorithm):
@@ -349,8 +301,8 @@ class BatchMax(LowRankAlgorithm):
 
         gains = None
 
-        if compute_alpha and V is not None:
-            gains = self._compute_alpha(R, V, n_candidates)
+        if compute_alpha:
+            gains = self._compute_alpha(R, n_candidates)
 
         return (int(candidate_ids[best_idx]), gains)
 
@@ -424,31 +376,6 @@ class GreedyPP(LowRankAlgorithm):
         return (int(candidate_ids[best_idx]), None)
 
 
-class Sequential(LowRankAlgorithm):
-    """Select columns in their original order, starting with column zero."""
-
-    name = "sequential_selection"
-
-    def select_columns(self, *args, **kwargs) -> AlgorithmResult:
-        self._next_index = 0
-
-        return super().select_columns(*args, **kwargs)
-
-    def select_index(
-        self,
-        R: np.ndarray,
-        k: int,
-        random_state: np.random.RandomState,
-        n_candidates: int | None = None,
-        V: np.ndarray | None = None,
-        compute_alpha: bool = False,
-    ) -> tuple[int, float | None]:
-        index = self._next_index
-        self._next_index += 1
-
-        return index, None
-
-
 class Random(LowRankAlgorithm):
     """Select a nonzero-residual column uniformly at random."""
 
@@ -474,3 +401,28 @@ class Random(LowRankAlgorithm):
             return 0, None
 
         return (int(random_state.choice(candidates)), None)
+
+
+class Sequential(LowRankAlgorithm):
+    """Select columns in their original order, starting with column zero."""
+
+    name = "sequential_selection"
+
+    def select_columns(self, *args, **kwargs) -> AlgorithmResult:
+        self._next_index = 0
+
+        return super().select_columns(*args, **kwargs)
+
+    def select_index(
+        self,
+        R: np.ndarray,
+        k: int,
+        random_state: np.random.RandomState,
+        n_candidates: int | None = None,
+        V: np.ndarray | None = None,
+        compute_alpha: bool = False,
+    ) -> tuple[int, float | None]:
+        index = self._next_index
+        self._next_index += 1
+
+        return index, None
