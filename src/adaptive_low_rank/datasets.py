@@ -108,7 +108,7 @@ def load_dataset(name):
     elif name == "cluster_expansion":
         data = np.load(root / "data" / "cluster_expansion_M.npy")
         indices = np.random.default_rng().choice(
-            data.shape[0], size=5000, replace=False
+            data.shape[0], size=1000, replace=False
         )
         return data[indices, :]
 
