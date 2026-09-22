@@ -4,6 +4,7 @@ from pathlib import Path
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from matplotlib.ticker import FixedLocator
 
 plt.rcParams.update(
@@ -293,6 +294,112 @@ def plot_runtime_scaling(
     plt.show()
 
 
+def runtime_table(results, fixed_d=None, fixed_n=None):
+    """Tabulate mean and std runtime for a fixed-d or fixed-n cross section.
+
+    Parameters
+    ----------
+    results : dict
+        Serialized output from the runtime scaling benchmark.
+
+    fixed_d : int, optional
+        Fix the number of rows and tabulate runtime as ``n`` varies.
+
+    fixed_n : int, optional
+        Fix the number of columns and tabulate runtime as ``d`` varies.
+
+    Returns
+    -------
+    mean_df, std_df : pandas.DataFrame
+        Runtime relative to Adaptive, averaged/std'd over repeats, indexed by
+        the varying dimension (``n`` or ``d``), with BatchMax and Greedy
+        columns.
+    """
+
+    if (fixed_d is None) == (fixed_n is None):
+        raise ValueError("Specify exactly one of fixed_d or fixed_n.")
+
+    algorithms = list(results["algorithms"])
+    runtime_matrix = np.asarray(results["runtimes"])
+
+    if "Adaptive" not in algorithms:
+        raise ValueError("Runtime results must include an Adaptive algorithm.")
+
+    adaptive_index = algorithms.index("Adaptive")
+    keep_algorithms = [
+        algorithm for algorithm in ("BatchMax", "Greedy") if algorithm in algorithms
+    ]
+    keep_indices = [algorithms.index(algorithm) for algorithm in keep_algorithms]
+
+    if fixed_d is not None:
+        dimension_index = results["dimensions"].index(fixed_d)
+        runtimes = runtime_matrix[:, dimension_index, :, :]
+        index = pd.Index(results["n_values"], name="n")
+    else:
+        n_index = results["n_values"].index(fixed_n)
+        runtimes = runtime_matrix[:, :, :, n_index].transpose(0, 2, 1)
+        index = pd.Index(results["dimensions"], name="d")
+
+    adaptive_runtimes = runtimes[adaptive_index]
+    relative_runtimes = runtimes / adaptive_runtimes[None, ...]
+    relative_runtimes = relative_runtimes[keep_indices]
+
+    mean_df = pd.DataFrame(
+        relative_runtimes.mean(axis=1).T,
+        index=index,
+        columns=keep_algorithms,
+    )
+    std_df = pd.DataFrame(
+        relative_runtimes.std(axis=1).T,
+        index=index,
+        columns=keep_algorithms,
+    )
+
+    return mean_df, std_df
+
+
+def style_runtime_table(mean_df, std_df, sig_figs=3, caption=None):
+    """Format a runtime cross section for publication display/export.
+
+    Values are rendered as ``mean \u00b1 std`` at a fixed number of
+    significant figures.
+
+    Parameters
+    ----------
+    mean_df, std_df : pandas.DataFrame
+        Output of :func:`runtime_table`.
+
+    sig_figs : int, default=3
+        Number of significant figures used to format each value.
+
+    caption : str, optional
+        Table caption, used for notebook display and LaTeX export.
+
+    Returns
+    -------
+    pandas.io.formats.style.Styler
+        Styled table of ``mean \u00b1 std`` strings, ready to display in a
+        notebook or export via ``.to_latex(hrules=True, convert_css=True)``.
+    """
+
+    def fmt(value):
+        return f"{value:.{sig_figs}g}"
+
+    display_df = pd.DataFrame(
+        {
+            col: [f"{fmt(m)} \u00b1 {fmt(s)}" for m, s in zip(mean_df[col], std_df[col])]
+            for col in mean_df.columns
+        },
+        index=mean_df.index,
+    )
+
+    styler = display_df.style
+    if caption is not None:
+        styler = styler.set_caption(caption)
+
+    return styler
+
+
 def plot_alphas(results, output_dir, name="alphas"):
     """
     Plot alpha values over the iterations.
@@ -379,11 +486,9 @@ def plot_alphas(results, output_dir, name="alphas"):
         gains_bm = np.array([r.gains_bm for r in runs], dtype=float)
         gains_as = np.array([r.gains_as for r in runs], dtype=float)
 
-        ratios = gains_bm / gains_as - 1
         mean_gains_bm = np.nanmean(gains_bm, axis=0)
         mean_gains_as = np.nanmean(gains_as, axis=0)
         mean = mean_gains_bm / mean_gains_as - 1
-        std = np.nanstd(ratios, axis=0)
         x = np.arange(1, len(mean) + 1)
 
         base = np.array(mcolors.to_rgb(base_colors[algorithm]))
@@ -417,9 +522,6 @@ def plot_alphas(results, output_dir, name="alphas"):
             markersize=6,
             label=label,
         )
-
-        if len(runs) > 1:
-            ax.fill_between(x, mean - std, mean + std, color=color, alpha=0.2)
 
     ax.set_xlabel("Selected Rows")
     ax.set_ylabel(r"$\alpha$")

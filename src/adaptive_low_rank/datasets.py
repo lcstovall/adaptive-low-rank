@@ -129,7 +129,7 @@ def load_dataset(name):
             image = np.asarray(Image.open(file), dtype=float)
             images.append(image.ravel())
 
-        data = np.asarray(images).T
+        data = np.asarray(images)
 
         return data
 
