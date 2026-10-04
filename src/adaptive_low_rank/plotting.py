@@ -53,6 +53,7 @@ def plot_residuals(
     name="residuals",
     n_candidates=None,
     compute_optimal=False,
+    logx=False
 ):
     """
     Plot normalized residual curves.
@@ -195,6 +196,18 @@ def plot_residuals(
 
     ax.set_yscale("log")
 
+    # Headroom is a fixed fraction of the log-scale span of the data.
+    plotted_values = np.concatenate([line.get_ydata() for line in ax.lines])
+    plotted_values = plotted_values[np.isfinite(plotted_values) & (plotted_values > 0)]
+    log_span = np.log10(plotted_values.max() / plotted_values.min())
+    ax.set_ylim(
+        bottom=ax.get_ylim()[0],
+        top=plotted_values.max() * 10 ** (0.04 * log_span),
+    )
+
+    if logx:
+        ax.set_xscale("log")
+
     fig.canvas.draw()
     labeled_minor_ticks = [
         tick.get_loc() for tick in ax.yaxis.get_minor_ticks() if tick.label1.get_text()
@@ -206,9 +219,22 @@ def plot_residuals(
 
     ax.grid(True, which="both", axis="y")
 
-    ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=10, frameon=False)
+    is_interactions_plot = name == "interactions"
+    legend_loc = "lower left" if is_interactions_plot else "upper right"
+    legend_anchor = (0.025, 0.04) if is_interactions_plot else (0.975, 0.96)
 
-    fig.subplots_adjust(right=0.75, left=0.10, bottom=0.12, top=0.97)
+    ax.legend(
+        loc=legend_loc,
+        bbox_to_anchor=legend_anchor,
+        borderaxespad=0,
+        fontsize=10,
+        frameon=True,
+        framealpha=1.0,
+        facecolor="white",
+        edgecolor="black",
+    )
+
+    fig.subplots_adjust(right=0.95, left=0.10, bottom=0.12, top=0.97)
 
     fig.savefig(output_dir / f"{name}_residuals.png", dpi=300, bbox_inches="tight")
 
@@ -530,9 +556,18 @@ def plot_alphas(results, output_dir, name="alphas"):
 
     ax.grid(True, which="major", axis="y", alpha=0.3)
 
-    ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=10, frameon=False)
+    ax.legend(
+        loc="upper right",
+        bbox_to_anchor=(0.975, 0.96),
+        borderaxespad=0,
+        fontsize=10,
+        frameon=True,
+        framealpha=1.0,
+        facecolor="white",
+        edgecolor="black",
+    )
 
-    fig.subplots_adjust(right=0.75, left=0.10, bottom=0.12, top=0.97)
+    fig.subplots_adjust(right=0.95, left=0.10, bottom=0.12, top=0.97)
 
     fig.savefig(output_dir / f"{output_name}.png", dpi=300, bbox_inches="tight")
 

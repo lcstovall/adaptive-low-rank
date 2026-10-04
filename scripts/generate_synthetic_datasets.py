@@ -22,16 +22,28 @@ ROOT = Path(__file__).resolve().parents[1]
 CONFIG_DIR = ROOT / "configs"
 DATA_DIR = ROOT / "data"
 SYNTHETIC_NAME = re.compile(r"^(exp|poly).+$")
+MULTISCALE_MODELS = ("exact", "orthogonal_tubes", "ambient_noise")
 
 
 def _generate(config_path, force=False):
-    name = config_path.stem
-
     with config_path.open() as file:
         config = yaml.safe_load(file) or {}
 
-    dataset_type = str(config.get("dataset_type", "decay")).lower()
+    name = str(config.get("dataset", config_path.stem))
+    filename_model = next(
+        (
+            model
+            for model in MULTISCALE_MODELS
+            if config_path.stem.startswith(model)
+        ),
+        None,
+    )
+    dataset_type = str(
+        config.get("dataset_type", "multiscale" if filename_model else "decay")
+    ).lower()
     if dataset_type == "multiscale":
+        if filename_model is not None:
+            config.setdefault("model", filename_model)
         return _generate_multiscale(name, config, force=force)
     if dataset_type != "decay":
         raise ValueError(
@@ -119,7 +131,10 @@ def main():
     parser.add_argument(
         "--pattern",
         default=None,
-        help="Only process matching config filenames, such as exp*.yml or multiscale*.yml.",
+        help=(
+            "Only process matching config filenames, such as exp*.yml, "
+            "exact*.yml, orthogonal_tubes*.yml, or ambient_noise*.yml."
+        ),
     )
     parser.add_argument(
         "--force",

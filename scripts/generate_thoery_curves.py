@@ -1,9 +1,15 @@
 from pathlib import Path
 import pickle
 
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FixedLocator
 from adaptive_low_rank.datasets import load_dataset
 import numpy as np
+
+plt.rcParams.update(
+    {"font.family": "serif", "mathtext.fontset": "cm", "axes.unicode_minus": False}
+)
 
 
 def compute_batchmax_alphas(results, n_candidates):
@@ -97,17 +103,40 @@ def plot_theory_curves(
     iterations = np.arange(1, len(bounds_as) + 1)
     optimal_iterations, optimal_curve = optimal_trace_curve(X, max_k)
 
-    fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+    color_cycle = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    # Match plot_residuals: base colors lightened by t = 0.15.
+    def residual_color(index):
+        base = np.array(mcolors.to_rgb(color_cycle[index]))
+        return 0.85 * base + 0.15 * np.ones(3)
+
+    adaptive_color = residual_color(0)
+    batchmax_color = residual_color(1)
+
+    fig, ax = plt.subplots(figsize=(11, 6), dpi=300)
     ax.plot(
         optimal_iterations,
         np.sqrt(optimal_curve),
         color="black",
+        linestyle="--",
+        linewidth=2.0,
+        label="Rank-$k$ trunc. SVD",
+    )
+    ax.plot(
+        iterations,
+        np.sqrt(bounds_as),
+        color=adaptive_color,
         linestyle=":",
         linewidth=2.0,
-        label="Best rank-$k$ approximation",
+        label="Adaptive (theory)",
     )
-    ax.plot(iterations, np.sqrt(bounds_as), linewidth=2.0, label="Adaptive sampling")
-    ax.plot(iterations, np.sqrt(bounds_bm), linewidth=2.0, label="BatchMax")
+    ax.plot(
+        iterations,
+        np.sqrt(bounds_bm),
+        color=batchmax_color,
+        linestyle=":",
+        linewidth=2.0,
+        label="Batch Max (theory)",
+    )
 
     if results is not None:
         adaptive_iterations, adaptive_empirical = empirical_trace_curve(
@@ -120,33 +149,54 @@ def plot_theory_curves(
             batchmax_n_candidates,
             first_run_only=True,
         )
-        ax.plot(
-            adaptive_iterations,
-            adaptive_empirical,
-            color="tab:blue",
-            linestyle="--",
-            linewidth=1.8,
-            label="Adaptive sampling (empirical)",
-        )
-        ax.plot(
-            batchmax_iterations,
-            batchmax_empirical,
-            color="tab:orange",
-            linestyle="--",
-            linewidth=1.8,
-            label="BatchMax (empirical)",
-        )
-    ax.set_xlabel("Number of iterations ($k$)")
-    ax.set_ylabel(r"Normalized Residual $(\|R_k\|_F / \|R_0\|_F)$")
+        for x, y, color, marker, label in [
+            (adaptive_iterations, adaptive_empirical, adaptive_color, "o",
+             "Adaptive (empirical)"),
+            (batchmax_iterations, batchmax_empirical, batchmax_color, "s",
+             "Batch Max (empirical)"),
+        ]:
+            ax.plot(
+                x,
+                y,
+                color=color,
+                linewidth=2.0,
+                marker=marker,
+                markevery=np.arange(0, len(x), max(int(np.ceil(len(x) / 20)), 1)),
+                markersize=8,
+                markeredgewidth=3,
+                label=label,
+            )
+
     ax.set_yscale("log")
     plotted_values = np.concatenate([line.get_ydata() for line in ax.lines])
     positive_values = plotted_values[plotted_values > 0]
+    # Headroom is a fixed fraction of the log-scale span of the data.
+    y_min, y_max = positive_values.min(), positive_values.max()
+    log_span = np.log10(y_max / y_min)
     ax.set_ylim(
-        bottom=max(positive_values.min() / 2.0, 1e-16),
-        top=min(1.0, positive_values.max() * 2.0),
+        bottom=max(y_min / 2.0, 1e-16),
+        top=y_max * 10 ** (0.04 * log_span),
     )
-    ax.legend(frameon=False)
-    fig.tight_layout()
+
+    fig.canvas.draw()
+    labeled_minor_ticks = [
+        tick.get_loc() for tick in ax.yaxis.get_minor_ticks() if tick.label1.get_text()
+    ]
+    ax.yaxis.set_minor_locator(FixedLocator(labeled_minor_ticks))
+
+    ax.set_xlabel(r"Number of Selected Columms ($k$)", fontsize=13)
+    ax.set_ylabel(r"Normalized Residual $(\|R_k\|_F / \|R_0\|_F)$", fontsize=13)
+    ax.legend(
+        loc="lower left",
+        bbox_to_anchor=(0.025, 0.04),
+        borderaxespad=0,
+        fontsize=10,
+        frameon=True,
+        framealpha=1.0,
+        facecolor="white",
+        edgecolor="black",
+    )
+    fig.subplots_adjust(right=0.95, left=0.10, bottom=0.12, top=0.97)
 
     if output_path is not None:
         output_path = Path(output_path)
