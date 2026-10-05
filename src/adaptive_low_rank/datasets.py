@@ -5,61 +5,7 @@ from PIL import Image
 from scipy.io import loadmat
 from sklearn.datasets import fetch_openml
 
-
-def generate_synthetic_dataset(decay_type, decay_param, n=2000, d=2000, random_state=0):
-    """
-    Generate a synthetic matrix with prescribed singular-value decay.
-
-    Parameters
-    ----------
-    decay_type : {"poly", "exp"}
-        Type of singular-value decay.
-    decay_param : float
-        Decay parameter:
-            poly: sigma_i = i^(-decay_param)
-            exp:  sigma_i = exp(-decay_param * (i - 1))
-    n : int
-        Number of columns.
-    d : int
-        Number of rows.
-
-    Returns
-    -------
-    X : ndarray
-        Synthetic d x n matrix.
-    """
-
-    r = min(d, n)
-
-    rng = np.random.default_rng(random_state)
-
-    # Random orthonormal left singular vectors
-    U_random = rng.standard_normal((d, r))
-    U, _ = np.linalg.qr(U_random)
-
-    # Random orthonormal right singular vectors
-    V_random = rng.standard_normal((n, r))
-    V, _ = np.linalg.qr(V_random)
-
-    # Construct singular values
-    i = np.arange(1, r + 1)
-
-    if decay_type == "poly":
-        singular_values = i ** (-decay_param)
-
-    elif decay_type == "exp":
-        singular_values = np.exp(-decay_param * (i - 1))
-
-    else:
-        raise ValueError(f"Unknown decay type: {decay_type}")
-
-    # Normalize so ||X||_F = 1
-    singular_values /= np.linalg.norm(singular_values)
-
-    # X = U Sigma V^T
-    X = (U * singular_values) @ V.T
-
-    return X
+from adaptive_low_rank.synthetic import ensure_synthetic_dataset
 
 
 def load_dataset(name=None, config=None):
@@ -68,10 +14,10 @@ def load_dataset(name=None, config=None):
     Parameters
     ----------
     name : str, optional
-        Data-set identifier. Supported identifiers are ``interactions``,
-        ``mnist``, ``mnistT``, ``yearprediction``, ``coil20``, ``cfar10``,
-        ``cfar10T``, and ``new_data``. Other names are loaded from
-        ``data/<name>.npz``. Ignored when ``config`` is given.
+        Data-set identifier. Built-in identifiers are ``interactions``,
+        ``cluster_expansion``, ``mnistT``, ``yearprediction``, ``coil20``,
+        and ``cfar10T``. Other names are loaded from ``data/<name>.npz`` when
+        that archive exists. Ignored when ``config`` is given.
     config : dict, optional
         Parsed experiment YAML; its ``dataset`` field is used as the name. If
         it sets ``synthetic: true``, ``data/<dataset>.npz`` is generated when
@@ -80,8 +26,10 @@ def load_dataset(name=None, config=None):
     Returns
     -------
     np.ndarray
-        Data matrix. Transposed variants have samples in columns; the
-        untransposed variants retain samples in rows as loaded.
+        Data matrix in the loader-specific orientation. ``mnistT``,
+        ``cfar10T``, and ``yearprediction`` have samples in columns;
+        ``coil20`` has images in rows. Other loaders preserve the orientation
+        of their source or generated matrix.
 
     Raises
     ------
@@ -94,9 +42,6 @@ def load_dataset(name=None, config=None):
 
     if config is not None:
         name = config["dataset"]
-        # Imported here because synthetic.py imports from this module.
-        from adaptive_low_rank.synthetic import ensure_synthetic_dataset
-
         synthetic_path = ensure_synthetic_dataset(config)
         if synthetic_path is not None:
             with np.load(synthetic_path) as data:

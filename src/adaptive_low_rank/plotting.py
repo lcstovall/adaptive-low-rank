@@ -14,8 +14,7 @@ plt.rcParams.update(
     {"font.family": "serif", "mathtext.fontset": "cm", "axes.unicode_minus": False}
 )
 
-# Single font size for all text (labels, ticks, legend) in the residual, alpha,
-# and theory plots.
+# Single font size for all text
 FONT_SIZE = 12
 
 METHOD_MARKERS = {
@@ -221,7 +220,7 @@ def plot_residuals(
     ]
     ax.yaxis.set_minor_locator(FixedLocator(labeled_minor_ticks))
 
-    ax.set_xlabel(r"Number of Selected Columms ($k$)", fontsize=FONT_SIZE)
+    ax.set_xlabel(r"Number of Selected Columns ($k$)", fontsize=FONT_SIZE)
     ax.set_ylabel(
         r"Normalized Residual $(\|R_k\|_F / \|R_0\|_F)$", fontsize=FONT_SIZE
     )
@@ -349,7 +348,7 @@ def plot_theory_curves(
     ]
     ax.yaxis.set_minor_locator(FixedLocator(labeled_minor_ticks))
 
-    ax.set_xlabel(r"Number of Selected Columms ($k$)", fontsize=FONT_SIZE)
+    ax.set_xlabel(r"Number of Selected Columns ($k$)", fontsize=FONT_SIZE)
     ax.set_ylabel(
         r"Normalized Residual $(\|R_k\|_F / \|R_0\|_F)$", fontsize=FONT_SIZE
     )
@@ -687,7 +686,7 @@ def plot_alphas(results, output_dir, name="alphas"):
             label=label,
         )
 
-    ax.set_xlabel("Selected Rows", fontsize=FONT_SIZE)
+    ax.set_xlabel(r"Number of Selected Columns ($k$)", fontsize=FONT_SIZE)
     ax.set_ylabel(r"$\alpha$", fontsize=FONT_SIZE)
 
     ax.tick_params(axis="both", which="both", labelsize=FONT_SIZE)

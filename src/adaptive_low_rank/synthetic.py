@@ -8,13 +8,69 @@ from typing import Any, Literal
 import numpy as np
 from numpy.typing import NDArray
 
-from adaptive_low_rank.datasets import generate_synthetic_dataset
-
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 MULTISCALE_MODELS = ("exact", "orthogonal_tubes", "ambient_noise")
 
 Array = NDArray[np.float64]
 ModelName = Literal["exact", "orthogonal_tubes", "ambient_noise"]
+
+
+def generate_synthetic_dataset(
+    decay_type, decay_param, n=2000, d=2000, random_state=0
+):
+    """
+    Generate a synthetic matrix with prescribed singular-value decay.
+
+    Parameters
+    ----------
+    decay_type : {"poly", "exp"}
+        Type of singular-value decay.
+    decay_param : float
+        Decay parameter:
+            poly: sigma_i = i^(-decay_param)
+            exp:  sigma_i = exp(-decay_param * (i - 1))
+    n : int
+        Number of columns.
+    d : int
+        Number of rows.
+
+    Returns
+    -------
+    X : ndarray
+        Synthetic d x n matrix.
+    """
+
+    r = min(d, n)
+
+    rng = np.random.default_rng(random_state)
+
+    # Random orthonormal left singular vectors
+    U_random = rng.standard_normal((d, r))
+    U, _ = np.linalg.qr(U_random)
+
+    # Random orthonormal right singular vectors
+    V_random = rng.standard_normal((n, r))
+    V, _ = np.linalg.qr(V_random)
+
+    # Construct singular values
+    i = np.arange(1, r + 1)
+
+    if decay_type == "poly":
+        singular_values = i ** (-decay_param)
+
+    elif decay_type == "exp":
+        singular_values = np.exp(-decay_param * (i - 1))
+
+    else:
+        raise ValueError(f"Unknown decay type: {decay_type}")
+
+    # Normalize so ||X||_F = 1
+    singular_values /= np.linalg.norm(singular_values)
+
+    # X = U Sigma V^T
+    X = (U * singular_values) @ V.T
+
+    return X
 
 
 @dataclass

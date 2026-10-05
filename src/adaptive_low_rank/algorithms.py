@@ -168,7 +168,7 @@ class LowRankAlgorithm(ABC):
             Batch-max and adaptive-sampling gains, respectively.
         """
         C = R @ R.T
-        e_p = np.sum(np.diag(C@C)) / np.sum(np.diag(C))
+        e_p = np.sum(np.diag(C @ C)) / np.sum(np.diag(C))
         col_norms_sq = np.linalg.norm(R, axis=0) ** 2
 
         if np.isclose(col_norms_sq.sum(), 0.0):
@@ -177,13 +177,18 @@ class LowRankAlgorithm(ABC):
         p = col_norms_sq / np.sum(col_norms_sq)
         g = (R * (C @ R)).sum(axis=0)
 
-        g = np.divide(g, col_norms_sq, out=np.zeros_like(g), where=col_norms_sq > 1e-16)
+        g = np.divide(
+            g,
+            col_norms_sq,
+            out=np.zeros_like(g),
+            where=col_norms_sq > 1e-16,
+        )
         g[col_norms_sq < 1e-16] = 0.0
 
         ordering = np.argsort(g)
         g = g[ordering]
         p = p[ordering]
-        Fb = np.cumsum(np.concatenate(([0], p)))**n_candidates
+        Fb = np.cumsum(np.concatenate(([0], p))) ** n_candidates
 
         q = Fb[1:] - Fb[:-1]
         e_q = np.sum(q * g)

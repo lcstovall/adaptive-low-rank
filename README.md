@@ -1,8 +1,12 @@
 # Adaptive Low-Rank Matrix Approximation
 
-A Python package for benchmarking adaptive algorithms for low-rank matrix approximation via column subset selection.
+A Python package for benchmarking adaptive algorithms for low-rank matrix
+approximation via column subset selection.
 
-This repository provides a common framework for implementing, comparing, and evaluating algorithms that iteratively select informative columns of a matrix. It includes experiment management, plotting utilities, and reproducible benchmarking through YAML configuration files.
+This repository provides a common framework for implementing, comparing,
+and evaluating algorithms that iteratively select informative columns of a
+matrix. It includes experiment management, plotting utilities, and
+configurable benchmarking through YAML configuration files.
 
 ---
 
@@ -63,21 +67,6 @@ Alternatively, install the complete requirements file into the virtual environme
 pip install -r requirements.txt
 ```
 
-## Plotting Optimal Residual Curves
-
-To compare the shape of the optimal low-rank residual curves across the
-configured data sets, run:
-
-```bash
-python3 scripts/plot_optimal_residuals.py
-```
-
-The script excludes `interactions_alpha` and `yearprediction_alpha`. It
-normalizes the horizontal axis by each data set's maximum rank and the
-residual by its initial Frobenius norm, then writes
-`figures/optimal_residuals_normalized.png`. Use `--yscale log` to emphasize
-small residual differences.
-
 ## Plotting Theory Curves
 
 Use `notebooks/plotting_theory.ipynb` to compare theoretical bounds,
@@ -119,9 +108,9 @@ adaptive-low-rank/
 ├── notebooks/              # Analysis and plotting notebooks
 ├── results/                # Saved experiment outputs
 ├── scripts/
-│   ├── plot_optimal_residuals.py
 │   ├── run_all_experiments.py
-│   └── run_experiment.py   # Main experiment runner
+│   ├── run_experiment.py   # Main experiment runner
+│   └── runtime_scaling.py
 │
 ├── src/
 │   └── adaptive_low_rank/
@@ -153,8 +142,6 @@ Example:
 
 ```yaml
 dataset: interactions
-
-r: 50
 
 algorithms:
 
@@ -196,13 +183,16 @@ python scripts/run_all_experiments.py
 ```
 
 Use `--continue-on-error` to run remaining configurations after a failure, or
-`--pattern '*.yaml'` to select a different filename pattern.
+`--pattern 'interactions*.yml'` to select a subset of configuration files.
 
 Synthetic datasets are generated automatically when an experiment runs and
-`data/<dataset>.npz` is missing. Set `synthetic: true` and provide
-`decay_type` (`exp` or `poly`) and `decay_param`. The optional `n`, `d`, and
-`random_state` fields default to `2000`, `2000`, and `0`. Generated matrices
-are saved as `data/<dataset>.npz`.
+`data/<dataset>.npz` is missing. For decay-based datasets, set
+`synthetic: true` and provide `decay_type` (`exp` or `poly`) and
+`decay_param`. The optional `n`, `d`, and `random_state` fields default to
+`2000`, `2000`, and `0`. Model-based multiscale datasets use model-specific
+configuration instead; see `configs/orthogonal_tubes_1.yml` and
+`configs/orthogonal_tubes_2.yml`. Generated matrices are saved as
+`data/<dataset>.npz`.
 
 ---
 
@@ -210,8 +200,7 @@ are saved as `data/<dataset>.npz`.
 
 Each experiment consists of
 
-- a dataset
-- an output name
+- a dataset identifier
 - optional experiment-wide parameters
 - algorithm-specific parameter grids
 
@@ -220,11 +209,12 @@ Parameters that are lists are expanded into every combination automatically.
 Example
 
 ```yaml
-batch_max:
-
-  k: [50,100]
-  random_state: [0,1,2]
-  n_candidates: [5,10]
+dataset: interactions
+algorithms:
+  batch_max:
+    k: [50, 100]
+    random_state: [0, 1, 2]
+    n_candidates: [5, 10]
 ```
 
 produces
@@ -237,46 +227,45 @@ benchmark runs.
 
 ---
 
-## Alpha Computation
+## Alpha Diagnostics
 
-Adaptive Sampling and Batch Max can optionally compute the theoretical alpha value.
-
-Simply include
+Batch Max can record per-iteration gain diagnostics used to calculate the
+alpha curves. Enable them on the `batch_max` algorithm entry:
 
 ```yaml
-r: 50
+algorithms:
+  batch_max:
+    k: [120]
+    n_candidates: [10, 50]
+    compute_alpha: true
 ```
 
-at the top level of the experiment configuration.
-
-The truncated right singular vectors are computed **once** and reused for every run.
-
-If `r` is omitted, alpha values are not computed.
+When Batch Max diagnostics are available, `summary.csv` includes the final 
+`final_gains_bm` and `final_gains_as` values; the alpha plotting helper derives 
+alpha as the ratio of the averaged gains minus one.
 
 ---
 
 ## Output
 
-Each experiment creates a results directory containing
+Running an experiment saves these files under `results/<dataset>/`:
 
 ```
 results.pkl
 summary.csv
 config.yml
-residuals.pdf
-residuals.png
-alphas.pdf
-alphas.png
 ```
 
-Runtime measurement is disabled by default. Set `compute_runtime: true` for
-an algorithm run when runtime data is needed. `summary.csv` contains
+The experiment runner does not generate plots. Use the plotting notebooks or
+plotting helpers separately to create figures.
 
-- algorithm
-- parameters
-- final residual
-- runtime (if computed)
-- final alpha (if available)
+Runtime measurement is disabled by default. Set `compute_runtime: true` for
+an algorithm run when runtime data is needed. `summary.csv` contains the
+algorithm and run parameters, plus:
+
+- `final_residual`
+- `runtime`, if computed
+- `final_gains_bm` and `final_gains_as`, if Batch Max diagnostics are available
 
 ---
 
@@ -284,33 +273,38 @@ an algorithm run when runtime data is needed. `summary.csv` contains
 
 Create a subclass of `LowRankAlgorithm`.
 
-Implement
+Implement the following method (with NumPy imported as `np`):
 
 ```python
-select_index(...)
+def select_index(
+    self,
+    R: np.ndarray,
+    k: int,
+    random_state: np.random.RandomState,
+    n_candidates: int | None = None,
+    V: np.ndarray | None = None,
+    compute_alpha: bool = False,
+) -> tuple[int, tuple[float, float] | None]:
+    ...
 ```
 
 which returns
 
 ```python
-(index, alpha)
+(index, gains)
 ```
 
-where `alpha` should be `None` if the algorithm does not compute one.
+where `index` is the selected column and `gains` is either a
+`(batch_max_gain, adaptive_sampling_gain)` tuple or `None` when the algorithm
+does not compute gain diagnostics. See `LowRankAlgorithm.select_index` for the
+full signature.
 
-Then register the algorithm in
+Import the class and add it to the `ALGORITHMS` mapping in `registry.py`.
+
+For example, add this entry:
 
 ```python
-registry.py
-```
-
-For example
-
-```python
-ALGORITHMS = {
-    ...
-    "my_algorithm": MyAlgorithm,
-}
+"my_algorithm": MyAlgorithm,
 ```
 
 It will automatically work with the benchmarking framework.
@@ -319,13 +313,11 @@ It will automatically work with the benchmarking framework.
 
 ## Dependencies
 
-- numpy
-- scipy
-- matplotlib
-- pandas
-- pyyaml
+The package dependencies are declared in `pyproject.toml`: NumPy, SciPy,
+Matplotlib, pandas, PyYAML, scikit-learn, Pillow, and GraphLearning. Install
+the optional notebook tools with `pip install -e ".[notebooks]"`.
 
-Install everything with
+Install the core package dependencies with
 
 ```bash
 pip install -e .
@@ -342,4 +334,6 @@ Kevin Miller
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License. The project authors are listed
+above; the copyright notice names Luke Stovall as the copyright holder. See
+[LICENSE](./LICENSE) for the license terms.
