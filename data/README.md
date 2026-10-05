@@ -12,7 +12,7 @@ The transposed datasets have features in rows and samples in columns; the other 
 | `coil20` | Reads every PNG in sorted order, flattens each image, and transposes the resulting matrix. | `data/coil-20-proc/` |
 | `yearprediction` | Reads the comma-separated file, removes the first column (the target), and transposes the feature matrix. | `data/YearPredictionMSD.txt` |
 | `cluster_expansion` | Loads the matrix and randomly selects 5,000 rows without replacement. | `data/cluster_expansion_M.npy` |
-| `exp005`, `exp01`, `exp1`, `poly2`, `poly3` | Loads the generated matrix `X` from a compressed NumPy archive. | `data/<identifier>.npz` |
+| Any config with `synthetic: true` (e.g. `exp`, `poly`) | Generates the matrix `X` from the config if missing, then loads it from a compressed NumPy archive. | `data/<identifier>.npz` |
 
 The `.mat`, `.npy`, `.npz`, and COIL-20 files needed by the repository are
 already included. The external datasets used by the loaders are MNIST via
@@ -56,11 +56,5 @@ respective terms and attribution requirements:
 ### Generating synthetic datasets
 
 The synthetic archives are described by the matching files in `configs/` and
-can be generated or regenerated from the repository root with:
-
-```bash
-```bash
-python3 scripts/generate_synthetic_datasets.py
-```
-
-By default, existing archives are kept. Use `--force` to regenerate them.
+are generated automatically the first time an experiment using them runs. To
+regenerate one, delete its `.npz` file.

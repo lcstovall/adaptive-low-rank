@@ -25,7 +25,7 @@ config_path = ROOT / "configs" / args.config
 with open(config_path) as f:
     experiment = yaml.safe_load(f)
 
-X = load_dataset(experiment["dataset"])
+X = load_dataset(config=experiment)
 
 runs = generate_runs(experiment)
 

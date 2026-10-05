@@ -1,158 +1,18 @@
-"""Generate synthetic datasets for experiments.
+"""Synthetic dataset generation, including config-driven on-demand builds."""
 
-The script's command-line entry point generates the YAML-described datasets.
-The public :func:`generate_multiscale_dataset` function below provides a
-structured multiscale dataset for experiments that need cluster metadata.
-"""
-
-import argparse
 import json
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
 import numpy as np
-import yaml
 from numpy.typing import NDArray
 
 from adaptive_low_rank.datasets import generate_synthetic_dataset
 
-ROOT = Path(__file__).resolve().parents[1]
-CONFIG_DIR = ROOT / "configs"
-DATA_DIR = ROOT / "data"
-SYNTHETIC_NAME = re.compile(r"^(exp|poly).+$")
+DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 MULTISCALE_MODELS = ("exact", "orthogonal_tubes", "ambient_noise")
 
-
-def _generate(config_path, force=False):
-    with config_path.open() as file:
-        config = yaml.safe_load(file) or {}
-
-    name = str(config.get("dataset", config_path.stem))
-    filename_model = next(
-        (
-            model
-            for model in MULTISCALE_MODELS
-            if config_path.stem.startswith(model)
-        ),
-        None,
-    )
-    dataset_type = str(
-        config.get("dataset_type", "multiscale" if filename_model else "decay")
-    ).lower()
-    if dataset_type == "multiscale":
-        if filename_model is not None:
-            config.setdefault("model", filename_model)
-        return _generate_multiscale(name, config, force=force)
-    if dataset_type != "decay":
-        raise ValueError(
-            f"Unsupported dataset_type={dataset_type!r} in {config_path.name}"
-        )
-    if not SYNTHETIC_NAME.fullmatch(name):
-        return False
-
-    missing = [key for key in ("decay_type", "decay_param") if key not in config]
-    if missing:
-        raise ValueError(
-            f"{config_path.name} is synthetic but is missing: {', '.join(missing)}"
-        )
-
-    output_path = DATA_DIR / f"{name}.npz"
-    if output_path.exists() and not force:
-        print(f"Skipping {name}: {output_path.name} already exists")
-        return True
-
-    decay_type = str(config["decay_type"]).lower()
-    if decay_type not in {"exp", "poly"}:
-        raise ValueError(f"Unsupported decay_type {decay_type!r} in {config_path.name}")
-    if not name.startswith(decay_type):
-        raise ValueError(
-            f"{config_path.name} starts with a different decay type than "
-            f"decay_type={decay_type!r}"
-        )
-
-    n = int(config.get("n", 2000))
-    d = int(config.get("d", 2000))
-    random_state = config.get("random_state", 0)
-    if n < 1 or d < 1:
-        raise ValueError(f"n and d must be positive in {config_path.name}")
-
-    X = generate_synthetic_dataset(
-        decay_type=decay_type,
-        decay_param=float(config["decay_param"]),
-        n=n,
-        d=d,
-        random_state=random_state,
-    )
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(output_path, X=X)
-    print(f"Generated {output_path} with shape {X.shape}")
-    return True
-
-
-def _generate_multiscale(name, config, force=False):
-    output_path = DATA_DIR / f"{name}.npz"
-    if output_path.exists() and not force:
-        print(f"Skipping {name}: {output_path.name} already exists")
-        return True
-
-    model = str(config.get("model", "exact"))
-    if model not in {"exact", "orthogonal_tubes", "ambient_noise"}:
-        raise ValueError(f"Unsupported multiscale model {model!r} in {name}.yml")
-
-    dataset = generate_multiscale_dataset(
-        model=model,
-        n_clusters=int(config.get("n_clusters", 64)),
-        columns_per_cluster=int(config.get("columns_per_cluster", 8)),
-        high_energy=float(config.get("high_energy", 1.0)),
-        condition_number=float(config.get("condition_number", 1.0e4)),
-        ambient_dim=(
-            None
-            if config.get("ambient_dim") is None
-            else int(config["ambient_dim"])
-        ),
-        tube_dim=int(config.get("tube_dim", 3)),
-        eta=float(config.get("eta", 0.03)),
-        amplitude_spread=float(config.get("amplitude_spread", 0.8)),
-        balanced_transverse=bool(config.get("balanced_transverse", True)),
-        basis=str(config.get("basis", "random")),
-        seed=int(config.get("seed", 0)),
-    )
-    dataset.save(output_path)
-    print(f"Generated {output_path} with shape {dataset.X.shape}")
-    return True
-
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Generate datasets described by synthetic YAML configs."
-    )
-    parser.add_argument(
-        "--pattern",
-        default=None,
-        help=(
-            "Only process matching config filenames, such as exp*.yml, "
-            "exact*.yml, orthogonal_tubes*.yml, or ambient_noise*.yml."
-        ),
-    )
-    parser.add_argument(
-        "--force",
-        action="store_true",
-        help="Regenerate datasets even when the NPZ already exists.",
-    )
-    args = parser.parse_args()
-
-    if args.pattern is None:
-        configs = sorted(set(CONFIG_DIR.glob("*.yml")) | set(CONFIG_DIR.glob("*.yaml")))
-    else:
-        configs = sorted(CONFIG_DIR.glob(args.pattern))
-    generated = [_generate(path, force=args.force) for path in configs]
-    count = sum(generated)
-    print(f"Processed {count} synthetic dataset(s)")
-
-
-# Multiscale dataset API
 Array = NDArray[np.float64]
 ModelName = Literal["exact", "orthogonal_tubes", "ambient_noise"]
 
@@ -439,5 +299,101 @@ def generate_multiscale_dataset(
     )
 
 
-if __name__ == "__main__":
-    main()
+def _resolve_config(config):
+    """Classify a config as a ``decay`` or ``multiscale`` dataset, or neither.
+
+    A config describes a synthetic dataset only if it sets ``synthetic: true``.
+    ``dataset`` names the output file. ``dataset_type`` defaults to
+    ``multiscale`` when ``model`` is given and ``decay`` otherwise.
+
+    Returns ``(kind, name, config)`` where ``kind`` is ``None`` when the config
+    does not describe a synthetic dataset.
+    """
+    config = dict(config or {})
+    name = str(config.get("dataset"))
+    if not config.get("synthetic", False):
+        return None, name, config
+
+    dataset_type = str(
+        config.get("dataset_type", "multiscale" if "model" in config else "decay")
+    ).lower()
+    if dataset_type == "multiscale":
+        return "multiscale", name, config
+    if dataset_type != "decay":
+        raise ValueError(f"Unsupported dataset_type={dataset_type!r} in {name}")
+
+    missing = [key for key in ("decay_type", "decay_param") if key not in config]
+    if missing:
+        raise ValueError(f"{name} is synthetic but is missing: {', '.join(missing)}")
+    decay_type = str(config["decay_type"]).lower()
+    if decay_type not in {"exp", "poly"}:
+        raise ValueError(f"Unsupported decay_type {decay_type!r} in {name}")
+    return "decay", name, config
+
+
+def synthetic_dataset_path(config, data_dir=DATA_DIR):
+    """Return the NPZ path for a synthetic config, or ``None`` if not synthetic."""
+    kind, name, _ = _resolve_config(config)
+    return None if kind is None else Path(data_dir) / f"{name}.npz"
+
+
+def ensure_synthetic_dataset(config, force=False, data_dir=DATA_DIR):
+    """Generate the dataset described by ``config`` unless it already exists.
+
+    Parameters
+    ----------
+    config : dict
+        Parsed experiment YAML.
+    force : bool, default=False
+        Regenerate even when the NPZ already exists.
+
+    Returns
+    -------
+    Path or None
+        Location of the dataset, or ``None`` if ``config`` does not describe a
+        synthetic dataset (nothing is generated in that case).
+    """
+    kind, name, config = _resolve_config(config)
+    if kind is None:
+        return None
+
+    output_path = Path(data_dir) / f"{name}.npz"
+    if output_path.exists() and not force:
+        return output_path
+
+    if kind == "multiscale":
+        model = str(config.get("model", "exact"))
+        if model not in MULTISCALE_MODELS:
+            raise ValueError(f"Unsupported multiscale model {model!r} in {name}")
+        ambient_dim = config.get("ambient_dim")
+        dataset = generate_multiscale_dataset(
+            model=model,
+            n_clusters=int(config.get("n_clusters", 64)),
+            columns_per_cluster=int(config.get("columns_per_cluster", 8)),
+            high_energy=float(config.get("high_energy", 1.0)),
+            condition_number=float(config.get("condition_number", 1.0e4)),
+            ambient_dim=None if ambient_dim is None else int(ambient_dim),
+            tube_dim=int(config.get("tube_dim", 3)),
+            eta=float(config.get("eta", 0.03)),
+            amplitude_spread=float(config.get("amplitude_spread", 0.8)),
+            balanced_transverse=bool(config.get("balanced_transverse", True)),
+            basis=str(config.get("basis", "random")),
+            seed=int(config.get("seed", 0)),
+        )
+        dataset.save(output_path)
+        return output_path
+
+    n = int(config.get("n", 2000))
+    d = int(config.get("d", 2000))
+    if n < 1 or d < 1:
+        raise ValueError(f"n and d must be positive in {name}")
+    X = generate_synthetic_dataset(
+        decay_type=str(config["decay_type"]).lower(),
+        decay_param=float(config["decay_param"]),
+        n=n,
+        d=d,
+        random_state=config.get("random_state", 0),
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(output_path, X=X)
+    return output_path

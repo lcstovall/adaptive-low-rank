@@ -62,16 +62,20 @@ def generate_synthetic_dataset(decay_type, decay_param, n=2000, d=2000, random_s
     return X
 
 
-def load_dataset(name):
+def load_dataset(name=None, config=None):
     """Load a supported data set in matrix form.
 
     Parameters
     ----------
-    name : str
+    name : str, optional
         Data-set identifier. Supported identifiers are ``interactions``,
         ``mnist``, ``mnistT``, ``yearprediction``, ``coil20``, ``cfar10``,
-        ``cfar10T``, and ``new_data``. Synthetic datasets are loaded from
-        generated files named ``data/<name>.npz``.
+        ``cfar10T``, and ``new_data``. Other names are loaded from
+        ``data/<name>.npz``. Ignored when ``config`` is given.
+    config : dict, optional
+        Parsed experiment YAML; its ``dataset`` field is used as the name. If
+        it sets ``synthetic: true``, ``data/<dataset>.npz`` is generated when
+        missing and then loaded.
 
     Returns
     -------
@@ -82,24 +86,27 @@ def load_dataset(name):
     Raises
     ------
     ValueError
-        If ``name`` is not a supported identifier.
+        If ``name`` is not a supported identifier, or neither ``name`` nor
+        ``config`` is given.
     """
 
     root = Path(__file__).resolve().parents[2]
 
+    if config is not None:
+        name = config["dataset"]
+        # Imported here because synthetic.py imports from this module.
+        from adaptive_low_rank.synthetic import ensure_synthetic_dataset
+
+        synthetic_path = ensure_synthetic_dataset(config)
+        if synthetic_path is not None:
+            with np.load(synthetic_path) as data:
+                return data["X"]
+    if name is None:
+        raise ValueError("Provide a dataset name or a config.")
+
     if name == "interactions":
         data = loadmat(root / "data" / "interactions.mat")["B"]
         return data
-
-    elif name.startswith(("poly", "exp")):
-        path = root / "data" / f"{name}.npz"
-        if not path.exists():
-            raise FileNotFoundError(
-                f"Synthetic dataset '{name}' was not found at {path}. "
-                "Run scripts/generate_synthetic_datasets.py first."
-            )
-        with np.load(path) as data:
-            return data["X"]
 
     elif (root / "data" / f"{name}.npz").exists():
         with np.load(root / "data" / f"{name}.npz") as data:

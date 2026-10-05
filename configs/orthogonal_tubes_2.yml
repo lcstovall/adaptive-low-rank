@@ -1,4 +1,4 @@
-dataset_type: multiscale
+synthetic: true
 dataset: orthogonal_tubes_2
 model: orthogonal_tubes
 n_clusters: 50

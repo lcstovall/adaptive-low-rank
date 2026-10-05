@@ -20,6 +20,7 @@ This repository provides a common framework for implementing, comparing, and eva
 - Publication-quality plots of
   - normalized residuals
   - alpha values (when computed)
+  - theory and empirical residual curves
 - Automatic saving of
   - raw benchmark results
   - summary CSV
@@ -77,21 +78,33 @@ residual by its initial Frobenius norm, then writes
 `figures/optimal_residuals_normalized.png`. Use `--yscale log` to emphasize
 small residual differences.
 
+## Plotting Theory Curves
+
+Use `notebooks/plotting_theory.ipynb` to compare theoretical bounds,
+empirical residuals, and optimal rank-k residuals. The notebook loads each
+experiment's saved results and configuration, calls the reusable calculations
+in `adaptive_low_rank.theory`, and creates the figures with
+`adaptive_low_rank.plotting.plot_theory_curves`.
+
 ## Generating Synthetic Datasets
 
-Use the YAML-driven generator to create synthetic matrices for configs whose
-filenames begin with `exp` or `poly`:
+Synthetic datasets are built automatically the first time an experiment needs
+them: `scripts/run_experiment.py` passes the experiment YAML to
+`load_dataset`, which generates `data/<dataset>.npz` if it is missing before
+the algorithms run. A config is synthetic only if it sets `synthetic: true`;
+`dataset:` is the name of the generated file, and neither it nor the YAML
+filename affects generation. `dataset_type` is `decay` (default) or
+`multiscale`, which is the default when `model` is set.
 
-```bash
-python3 scripts/generate_synthetic_datasets.py
-```
+To regenerate a dataset after changing its config, delete its `.npz` file or
+call `ensure_synthetic_dataset(config, force=True)`.
 
-This creates `data/<config>.npz` for each matching config file. For example,
-`configs/exp1.yml` produces `data/exp1.npz`.
+For example, `configs/exp.yml` produces `data/exp.npz`.
 
-The underlying generator is available as `generate_synthetic_dataset` in
-`adaptive_low_rank.datasets`, and a generated dataset can be loaded with
-`load_dataset("exp1")`.
+The generators live in `adaptive_low_rank.synthetic`
+(`generate_multiscale_dataset`, `ensure_synthetic_dataset`) and
+`adaptive_low_rank.datasets` (`generate_synthetic_dataset`). A generated
+dataset can be loaded with `load_dataset("exp")`.
 
 ---
 
@@ -106,7 +119,6 @@ adaptive-low-rank/
 ├── notebooks/              # Analysis and plotting notebooks
 ├── results/                # Saved experiment outputs
 ├── scripts/
-│   ├── generate_synthetic_datasets.py
 │   ├── plot_optimal_residuals.py
 │   ├── run_all_experiments.py
 │   └── run_experiment.py   # Main experiment runner
@@ -120,7 +132,9 @@ adaptive-low-rank/
 │       ├── registry.py
 │       ├── results.py
 │       ├── run_generator.py
-│       └── save_results.py
+│       ├── save_results.py
+│       ├── synthetic.py
+│       └── theory.py
 │
 ├── LICENSE
 ├── pyproject.toml
@@ -184,17 +198,11 @@ python scripts/run_all_experiments.py
 Use `--continue-on-error` to run remaining configurations after a failure, or
 `--pattern '*.yaml'` to select a different filename pattern.
 
-Generate synthetic datasets from configurations whose filenames start with
-`exp` or `poly` with
-
-```bash
-python scripts/generate_synthetic_datasets.py
-```
-
-Synthetic configurations must provide `decay_type` (`exp` or `poly`) and
-`decay_param`. The optional `n`, `d`, and `random_state` fields default to
-`2000`, `2000`, and `0`. Generated matrices are saved as `data/<config>.npz`;
-use `--force` to regenerate an existing file.
+Synthetic datasets are generated automatically when an experiment runs and
+`data/<dataset>.npz` is missing. Set `synthetic: true` and provide
+`decay_type` (`exp` or `poly`) and `decay_param`. The optional `n`, `d`, and
+`random_state` fields default to `2000`, `2000`, and `0`. Generated matrices
+are saved as `data/<dataset>.npz`.
 
 ---
 
