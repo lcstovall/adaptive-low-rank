@@ -1,4 +1,4 @@
-dataset: cfar10T
+dataset: cifar10
 
 algorithms:
 

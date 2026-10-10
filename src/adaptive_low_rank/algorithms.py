@@ -144,7 +144,7 @@ class LowRankAlgorithm(ABC):
         index : int
             Index of the selected column.
         gains : tuple[float, float] or None
-            Batch-max and adaptive-sampling gains, if computed.
+            Batch-Max and adaptive-sampling gains, if computed.
         """
 
     @staticmethod
@@ -165,7 +165,7 @@ class LowRankAlgorithm(ABC):
         Returns
         -------
         tuple[float, float] or None
-            Batch-max and adaptive-sampling gains, respectively.
+            Batch-Max and adaptive-sampling gains, respectively.
         """
         C = R @ R.T
         e_p = np.sum(np.diag(C @ C)) / np.sum(np.diag(C))

@@ -14,7 +14,7 @@ configurable benchmarking through YAML configuration files.
 
 - Multiple column selection algorithms:
   - Adaptive Sampling
-  - Batch-Max
+  - Batch Max
   - Greedy
   - Greedy++
   - Random Selection
@@ -229,7 +229,7 @@ benchmark runs.
 
 ## Alpha Diagnostics
 
-Batch-Max can record per-iteration gain diagnostics used to calculate the
+Batch Max can record per-iteration gain diagnostics used to calculate the
 alpha curves. Enable them on the `batch_max` algorithm entry:
 
 ```yaml
@@ -240,7 +240,7 @@ algorithms:
     compute_alpha: true
 ```
 
-When Batch-Max diagnostics are available, `summary.csv` includes the final 
+When Batch Max diagnostics are available, `summary.csv` includes the final 
 `final_gains_bm` and `final_gains_as` values; the alpha plotting helper derives 
 alpha as the ratio of the averaged gains minus one.
 
@@ -265,7 +265,7 @@ algorithm and run parameters, plus:
 
 - `final_residual`
 - `runtime`, if computed
-- `final_gains_bm` and `final_gains_as`, if Batch-Max diagnostics are available
+- `final_gains_bm` and `final_gains_as`, if Batch Max diagnostics are available
 
 ---
 

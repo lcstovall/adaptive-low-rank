@@ -4,7 +4,7 @@ import numpy as np
 
 
 def compute_batchmax_alphas(results, n_candidates):
-    """Compute BatchMax alpha values using the ``plot_alphas`` convention."""
+    """Compute Batch-Max alpha values using the ``plot_alphas`` convention."""
     runs = [
         run
         for run in results
@@ -14,7 +14,7 @@ def compute_batchmax_alphas(results, n_candidates):
         and run["result"].gains_as is not None
     ]
     if not runs:
-        raise ValueError(f"No BatchMax results found for n_candidates={n_candidates}")
+        raise ValueError(f"No Batch-Max results found for n_candidates={n_candidates}")
 
     gains_bm = np.asarray([run["result"].gains_bm for run in runs], dtype=float)
     gains_as = np.asarray([run["result"].gains_as for run in runs], dtype=float)
@@ -22,7 +22,7 @@ def compute_batchmax_alphas(results, n_candidates):
 
 
 def generate_theory_curves(X, max_k, alphas):
-    """Return adaptive-sampling and BatchMax theory bounds."""
+    """Return adaptive-sampling and Batch-Max theory bounds."""
     singular_values_squared = np.linalg.svd(X, compute_uv=False) ** 2
     if len(alphas) < max_k:
         raise ValueError("alphas must contain at least max_k values")
@@ -125,7 +125,7 @@ def bisect_as(k, r, X_fro_sq, phi_r, tol=1e-7):
 
 
 def bisect_bm(k, r, alpha_mass, X_fro_sq, phi_r, tol=1e-7):
-    """Return the largest feasible epsilon for the BatchMax bound."""
+    """Return the largest feasible epsilon for the Batch-Max bound."""
     if k < 1 or r < 1 or X_fro_sq <= 0 or phi_r <= 0 or tol <= 0:
         raise ValueError("k, r, X_fro_sq, phi_r, and tol must be positive")
 

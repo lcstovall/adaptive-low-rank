@@ -1,18 +1,17 @@
 ## Datasets
 
 The experiment configurations use the dataset identifiers below. Each loader
-returns a NumPy matrix. `mnistT`, `cfar10T`, and `yearprediction` put features
+returns a NumPy matrix. `mnist`, `cifar10`, and `yearprediction` put features
 in rows and samples in columns. `coil20` returns one flattened image per row.
 The other loaders retain the orientation of their source or generated matrix.
 
 | Identifier | Source and loading behavior | Local input |
 | --- | --- | --- |
 | `interactions` | Loads the `B` matrix from the MATLAB file. | `data/interactions.mat` |
-| `mnistT` | Fetches `mnist_784` from OpenML with scikit-learn and transposes the data. | OpenML access; the data may be cached locally by scikit-learn. |
-| `cfar10T` | Loads the local CIFAR-10 feature archive and transposes the data. | `data/cifar10_simclr.npz` |
+| `mnist` | Fetches `mnist_784` from OpenML with scikit-learn and transposes the data. | OpenML access; the data may be cached locally by scikit-learn. |
+| `cifar10` | Loads the local CIFAR-10 feature archive and transposes the data. | `data/cifar10_simclr.npz` |
 | `coil20` | Reads every PNG in sorted order, flattens each image, and returns one image per row. | `data/coil-20-proc/` |
 | `yearprediction` | Reads the comma-separated file, removes the first column (the target), and transposes the feature matrix. | `data/YearPredictionMSD.txt` |
-| `cluster_expansion` | Loads the matrix and randomly selects 1,000 rows without replacement. | `data/cluster_expansion_M.npy` |
 | Any config with `synthetic: true` (e.g. `exp`, `poly`) | Generates the matrix `X` from the config if missing, then loads it from a compressed NumPy archive. | `data/<identifier>.npz` |
 
 Only `data/interactions.mat` is tracked as a dataset input. The other local
@@ -27,12 +26,11 @@ The following dataset assets are tracked in Git:
 These loader-required inputs are not tracked and must be obtained or created
 separately before running the corresponding experiments:
 
-- `data/cifar10_simclr.npz` for `cfar10T`
+- `data/cifar10_simclr.npz` for `cifar10`
 - `data/coil-20-proc/` containing the COIL-20 image files for `coil20`
 - `data/YearPredictionMSD.txt` for `yearprediction`
-- `data/cluster_expansion_M.npy` for `cluster_expansion`
 
-The `mnistT` loader fetches `mnist_784` from
+The `mnist` loader fetches `mnist_784` from
 [OpenML](https://www.openml.org/d/554), so its first run may require network
 access. Synthetic datasets are generated from their experiment
 configurations when needed; their `.npz` archives are not committed.
@@ -48,8 +46,6 @@ external datasets:
 
 ### Reproducibility notes
 
-- `cluster_expansion` draws a new random sample of 1,000 rows on each load;
-	its result is not deterministic because the loader does not set a seed.
 - Synthetic matrices are generated from the matching YAML configuration using
 	polynomial or exponential singular-value decay and normalized to unit
 	Frobenius norm.

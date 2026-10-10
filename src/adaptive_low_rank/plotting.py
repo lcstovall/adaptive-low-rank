@@ -14,8 +14,9 @@ plt.rcParams.update(
     {"font.family": "serif", "mathtext.fontset": "cm", "axes.unicode_minus": False}
 )
 
-# Single font size for all text
-FONT_SIZE = 12
+# Global font sizes for plot text and legends.
+FONT_SIZE = 20
+LEGEND_FONT_SIZE = 18
 
 METHOD_MARKERS = {
     "adaptive": "o",
@@ -28,8 +29,17 @@ _assigned_markers = dict(METHOD_MARKERS)
 
 
 def _is_batch_max(algorithm):
-    """Return whether an algorithm name identifies batch-max sampling."""
+    """Return whether an algorithm name identifies Batch-Max sampling."""
     return algorithm.replace("_", "").lower() == "batchmax"
+
+
+def _algorithm_label(algorithm):
+    """Return the legend label for an algorithm name."""
+    if algorithm == "greedy_pp":
+        return "Greedy++"
+    if _is_batch_max(algorithm):
+        return "Batch-Max"
+    return algorithm.replace("_", " ").title()
 
 
 def _marker_for_algorithm(algorithm):
@@ -76,8 +86,8 @@ def plot_residuals(
         Filename stem for the saved figures.
 
     n_candidates : int, optional
-        Batch Max candidate count to plot. If omitted, only the first
-        ``n_candidates`` value encountered for Batch Max is plotted. Other
+        Batch-Max candidate count to plot. If omitted, only the first
+        ``n_candidates`` value encountered for Batch-Max is plotted. Other
         algorithms are unaffected.
 
     compute_optimal : bool, default=False
@@ -151,11 +161,7 @@ def plot_residuals(
         color = (1 - t) * base + t * np.ones(3)
         marker = _marker_for_algorithm(algorithm)
 
-        label = (
-            "Greedy++"
-            if algorithm == "greedy_pp"
-            else algorithm.replace("_", " ").title()
-        )
+        label = _algorithm_label(algorithm)
 
         ax.plot(
             x,
@@ -236,7 +242,7 @@ def plot_residuals(
         loc=legend_loc,
         bbox_to_anchor=legend_anchor,
         borderaxespad=0,
-        fontsize=FONT_SIZE,
+        fontsize=LEGEND_FONT_SIZE,
         frameon=True,
         framealpha=1.0,
         facecolor="white",
@@ -253,7 +259,7 @@ def plot_residuals(
 def plot_theory_curves(
     X, max_k, alphas, output_path=None, results=None, batchmax_n_candidates=500
 ):
-    """Plot theory curves and optional empirical adaptive/BatchMax curves."""
+    """Plot theory curves and optional empirical adaptive/Batch-Max curves."""
     bounds_as, bounds_bm = generate_theory_curves(X, max_k, alphas)
     iterations = np.arange(1, len(bounds_as) + 1)
     optimal_iterations, optimal_curve = optimal_trace_curve(X, max_k)
@@ -290,7 +296,7 @@ def plot_theory_curves(
         color=batchmax_color,
         linestyle=":",
         linewidth=2.0,
-        label="Batch Max (theory)",
+        label="Batch-Max (theory)",
     )
 
     if results is not None:
@@ -317,7 +323,7 @@ def plot_theory_curves(
                 batchmax_empirical,
                 batchmax_color,
                 "s",
-                "Batch Max (empirical)",
+                "Batch-Max (empirical)",
             ),
         ]:
             ax.plot(
@@ -362,7 +368,7 @@ def plot_theory_curves(
         loc="lower left",
         bbox_to_anchor=(0.025, 0.04),
         borderaxespad=0,
-        fontsize=FONT_SIZE,
+        fontsize=LEGEND_FONT_SIZE,
         frameon=True,
         framealpha=1.0,
         facecolor="white",
@@ -437,7 +443,7 @@ def plot_runtime_scaling(
         algorithm = algorithms[algorithm_index]
         mean = means[algorithm_index]
 
-        ax.plot(x, mean, marker="o", label=algorithm)
+        ax.plot(x, mean, marker="o", label=_algorithm_label(algorithm))
 
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -448,7 +454,12 @@ def plot_runtime_scaling(
 
     ax.grid(True, which="major", axis="y", alpha=0.3)
 
-    ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=10, frameon=False)
+    ax.legend(
+        loc="upper left",
+        bbox_to_anchor=(1.02, 1),
+        fontsize=LEGEND_FONT_SIZE,
+        frameon=False,
+    )
 
     fig.subplots_adjust(right=0.75, left=0.10, bottom=0.12, top=0.92)
 
@@ -475,7 +486,7 @@ def runtime_table(results, fixed_d=None, fixed_n=None):
     -------
     mean_df, std_df : pandas.DataFrame
         Runtime relative to Adaptive, averaged/std'd over repeats, indexed by
-        the varying dimension (``n`` or ``d``), with BatchMax and Greedy
+        the varying dimension (``n`` or ``d``), with Batch-Max and Greedy
         columns.
     """
 
@@ -640,7 +651,7 @@ def plot_alphas(results, output_dir, name="alphas"):
     algorithm_indices = defaultdict(int)
     line_markers = ["o", "s", "^", "D", "*", "P", "v", "<", ">", "h"]
 
-    fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+    fig, ax = plt.subplots(figsize=(11, 6), dpi=300)
 
     for line_index, ((algorithm, params), runs) in enumerate(grouped.items()):
 
@@ -667,14 +678,10 @@ def plot_alphas(results, output_dir, name="alphas"):
 
         marker = line_markers[line_index % len(line_markers)]
 
-        label = (
-            "Greedy++"
-            if algorithm == "greedy_pp"
-            else algorithm.replace("_", " ").title()
-        )
-
         if "n_candidates" in params:
-            label += f" ($n_{{candidates}}={params['n_candidates']}$)"
+            label = f"$n_{{candidates}}={params['n_candidates']}$"
+        else:
+            label = _algorithm_label(algorithm)
 
         ax.plot(
             x,
@@ -687,7 +694,7 @@ def plot_alphas(results, output_dir, name="alphas"):
         )
 
     ax.set_xlabel(r"Number of Selected Columns ($k$)", fontsize=FONT_SIZE)
-    ax.set_ylabel(r"$\alpha$", fontsize=FONT_SIZE)
+    ax.set_ylabel(r"Batch-Max Improvement, $\alpha$", fontsize=FONT_SIZE)
 
     ax.tick_params(axis="both", which="both", labelsize=FONT_SIZE)
 
@@ -697,7 +704,7 @@ def plot_alphas(results, output_dir, name="alphas"):
         loc="upper right",
         bbox_to_anchor=(0.975, 0.96),
         borderaxespad=0,
-        fontsize=FONT_SIZE,
+        fontsize=LEGEND_FONT_SIZE,
         frameon=True,
         framealpha=1.0,
         facecolor="white",

@@ -15,9 +15,10 @@ def load_dataset(name=None, config=None):
     ----------
     name : str, optional
         Data-set identifier. Built-in identifiers are ``interactions``,
-        ``cluster_expansion``, ``mnistT``, ``yearprediction``, ``coil20``,
-        and ``cfar10T``. Other names are loaded from ``data/<name>.npz`` when
-        that archive exists. Ignored when ``config`` is given.
+        ``mnist``, ``yearprediction``, ``coil20``, and ``cifar10``. Legacy
+        identifiers ``mnistT`` and ``cfar10T`` are also accepted. Other names
+        are loaded from ``data/<name>.npz`` when that archive exists. Ignored
+        when ``config`` is given.
     config : dict, optional
         Parsed experiment YAML; its ``dataset`` field is used as the name. If
         it sets ``synthetic: true``, ``data/<dataset>.npz`` is generated when
@@ -26,10 +27,10 @@ def load_dataset(name=None, config=None):
     Returns
     -------
     np.ndarray
-        Data matrix in the loader-specific orientation. ``mnistT``,
-        ``cfar10T``, and ``yearprediction`` have samples in columns;
-        ``coil20`` has images in rows. Other loaders preserve the orientation
-        of their source or generated matrix.
+        Data matrix in the loader-specific orientation. ``mnist``, ``mnistT``,
+        ``cifar10``, ``cfar10T``, and ``yearprediction`` have samples in
+        columns; ``coil20`` has images in rows. Other loaders preserve the
+        orientation of their source or generated matrix.
 
     Raises
     ------
@@ -57,14 +58,7 @@ def load_dataset(name=None, config=None):
         with np.load(root / "data" / f"{name}.npz") as data:
             return data["X"]
 
-    elif name == "cluster_expansion":
-        data = np.load(root / "data" / "cluster_expansion_M.npy")
-        indices = np.random.default_rng().choice(
-            data.shape[0], size=1000, replace=False
-        )
-        return data[indices, :]
-
-    elif name == "mnistT":
+    elif name in ("mnist", "mnistT"):
         mnist = fetch_openml("mnist_784", as_frame=False, parser="auto")
         data = mnist["data"].astype(np.float64)
         return data.T
@@ -85,7 +79,7 @@ def load_dataset(name=None, config=None):
 
         return data
 
-    elif name == "cfar10T":
+    elif name in ("cifar10", "cfar10T"):
         data_path = root / "data" / "cifar10_simclr.npz"
         with np.load(data_path) as archive:
             data = archive["data"]
