@@ -254,9 +254,18 @@ def plot_residuals(
 
 
 def plot_theory_curves(
-    X, max_k, alphas, output_path=None, results=None, batchmax_n_candidates=500
+    X,
+    max_k,
+    alphas,
+    output_path=None,
+    results=None,
+    batchmax_n_candidates=500,
+    legend_loc="lower left",
 ):
-    """Plot theory curves and optional empirical adaptive/Batch-Max curves."""
+    """Plot theory curves and optional empirical adaptive/Batch-Max curves.
+
+    ``legend_loc`` is ``"lower left"`` (default) or ``"upper right"``.
+    """
     bounds_as, bounds_bm = generate_theory_curves(X, max_k, alphas)
     iterations = np.arange(1, len(bounds_as) + 1)
     optimal_iterations, optimal_curve = optimal_trace_curve(X, max_k)
@@ -348,13 +357,16 @@ def plot_theory_curves(
     ax.set_ylabel(r"Normalized Residual $(\|R_k\|_F / \|R_0\|_F)$", fontsize=FONT_SIZE)
     ax.tick_params(axis="both", which="both", labelsize=FONT_SIZE)
 
+    ax.grid(True, which="both", axis="y")
+
+    legend_anchor = (0.975, 0.96) if legend_loc == "upper right" else (0.025, 0.04)
     handles, labels = ax.get_legend_handles_labels()
     order = sorted(range(len(labels)), key=lambda i: labels[i].startswith("Rank-"))
     ax.legend(
         [handles[i] for i in order],
         [labels[i] for i in order],
-        loc="lower left",
-        bbox_to_anchor=(0.025, 0.04),
+        loc=legend_loc,
+        bbox_to_anchor=legend_anchor,
         borderaxespad=0,
         fontsize=LEGEND_FONT_SIZE,
         frameon=True,
