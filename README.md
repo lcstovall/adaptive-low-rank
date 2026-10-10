@@ -61,13 +61,27 @@ To run the plotting notebooks as well, install the notebook dependencies:
 pip install -e ".[notebooks]"
 ```
 
-Alternatively, install the complete requirements file into the virtual environment:
+Alternatively, install the package with notebook dependencies via the
+requirements file (it simply runs `pip install -e ".[notebooks]"`):
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Plotting Theory Curves
+## Notebooks
+
+Run an experiment first; each notebook reads from `results/<dataset>/` and
+writes figures to `figures/`.
+
+| Notebook | Purpose |
+| --- | --- |
+| `plotting_residuals.ipynb` | Normalized residual curves |
+| `plotting_alphas.ipynb` | Batch-Max alpha trajectories |
+| `plotting_synthetic.ipynb` | Residual plots for synthetic datasets |
+| `plotting_theory.ipynb` | Theory vs. empirical residual curves |
+| `runtime_tables.ipynb` | Runtime-scaling tables |
+
+### Plotting Theory Curves
 
 Use `notebooks/plotting_theory.ipynb` to compare theoretical bounds,
 empirical residuals, and optimal rank-k residuals. The notebook loads each
@@ -75,7 +89,7 @@ experiment's saved results and configuration, calls the reusable calculations
 in `adaptive_low_rank.theory`, and creates the figures with
 `adaptive_low_rank.plotting.plot_theory_curves`.
 
-## Generating Synthetic Datasets
+### Generating Synthetic Datasets
 
 Synthetic datasets are built automatically the first time an experiment needs
 them: `scripts/run_experiment.py` passes the experiment YAML to
@@ -165,7 +179,7 @@ algorithms:
 Run the experiment with
 
 ```bash
-python scripts/run_experiment.py configs/interactions.yml
+python scripts/run_experiment.py interactions.yml
 ```
 
 or simply
@@ -174,7 +188,8 @@ or simply
 python scripts/run_experiment.py
 ```
 
-to use the default configuration.
+to use the default configuration (`interactions.yml`). The argument is the
+name of a file inside `configs/`, not a path.
 
 Run every YAML configuration in `configs/` with
 
@@ -205,6 +220,17 @@ Each experiment consists of
 - algorithm-specific parameter grids
 
 Parameters that are lists are expanded into every combination automatically.
+
+Algorithm names used as keys under `algorithms:`:
+
+| Key | Algorithm |
+| --- | --- |
+| `adaptive` | Adaptive Sampling |
+| `batch_max` | Batch-Max |
+| `greedy` | Greedy |
+| `greedy_pp` | Greedy++ |
+| `random` | Random Selection |
+| `sequential` | Sequential Selection |
 
 Example
 
@@ -240,8 +266,8 @@ algorithms:
     compute_alpha: true
 ```
 
-When Batch-Max diagnostics are available, `summary.csv` includes the final 
-`final_gains_bm` and `final_gains_as` values; the alpha plotting helper derives 
+When Batch-Max diagnostics are available, `summary.csv` includes the
+`final_gains_bm` and `final_gains_as` values; the alpha plotting helper derives
 alpha as the ratio of the averaged gains minus one.
 
 ---
@@ -256,8 +282,30 @@ summary.csv
 config.yml
 ```
 
+`summary.csv` contains one row per run with the algorithm, its parameters,
+`final_residual`, and `runtime` when recorded.
+
 The experiment runner does not generate plots. Use the plotting notebooks or
 plotting helpers separately to create figures.
+
+---
+
+## Runtime Scaling
+
+```bash
+python scripts/runtime_scaling.py
+```
+
+benchmarks Adaptive, Batch-Max, Greedy, and Greedy++ on synthetic matrices of
+increasing size and saves `results/runtime_scaling/runtime_scaling.pkl`.
+`notebooks/runtime_tables.ipynb` turns it into mean and standard-deviation
+CSV tables under `results/runtime_scaling/tables/`.
+
+---
+
+## License
+
+See [LICENSE](LICENSE).
 
 Runtime measurement is disabled by default. Set `compute_runtime: true` for
 an algorithm run when runtime data is needed. `summary.csv` contains the

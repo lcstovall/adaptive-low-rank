@@ -148,9 +148,7 @@ class LowRankAlgorithm(ABC):
         """
 
     @staticmethod
-    def _compute_alpha(
-        R: np.ndarray, n_candidates: int
-    ) -> tuple[float, float] | None:
+    def _compute_alpha(R: np.ndarray, n_candidates: int) -> tuple[float, float] | None:
         """
         Compute the alpha diagnostic for the current iteration.
 
@@ -177,12 +175,7 @@ class LowRankAlgorithm(ABC):
         p = col_norms_sq / np.sum(col_norms_sq)
         g = (R * (C @ R)).sum(axis=0)
 
-        g = np.divide(
-            g,
-            col_norms_sq,
-            out=np.zeros_like(g),
-            where=col_norms_sq > 1e-16,
-        )
+        g = np.divide(g, col_norms_sq, out=np.zeros_like(g), where=col_norms_sq > 1e-16)
         g[col_norms_sq < 1e-16] = 0.0
 
         ordering = np.argsort(g)

@@ -15,9 +15,7 @@ Array = NDArray[np.float64]
 ModelName = Literal["exact", "orthogonal_tubes", "ambient_noise"]
 
 
-def generate_synthetic_dataset(
-    decay_type, decay_param, n=2000, d=2000, random_state=0
-):
+def generate_synthetic_dataset(decay_type, decay_param, n=2000, d=2000, random_state=0):
     """
     Generate a synthetic matrix with prescribed singular-value decay.
 
@@ -106,9 +104,7 @@ class MultiscaleDataset:
 
 
 def log_spaced_energies(
-    n_clusters: int,
-    high_energy: float = 1.0,
-    condition_number: float = 1.0e4,
+    n_clusters: int, high_energy: float = 1.0, condition_number: float = 1.0e4
 ) -> Array:
     """Return energies decreasing geometrically from H to H/kappa."""
     if n_clusters < 2:
@@ -118,10 +114,7 @@ def log_spaced_energies(
     if condition_number < 1:
         raise ValueError("condition_number must be at least 1")
     return np.geomspace(
-        high_energy,
-        high_energy / condition_number,
-        num=n_clusters,
-        dtype=np.float64,
+        high_energy, high_energy / condition_number, num=n_clusters, dtype=np.float64
     )
 
 
@@ -147,10 +140,7 @@ def _orthonormal_columns(
 
 
 def _cluster_amplitudes(
-    energies: Array,
-    columns_per_cluster: int,
-    rng: np.random.Generator,
-    spread: float,
+    energies: Array, columns_per_cluster: int, rng: np.random.Generator, spread: float
 ) -> Array:
     """Create differently scaled columns with the prescribed central energies."""
     if columns_per_cluster < 1:
@@ -170,10 +160,7 @@ def _cluster_amplitudes(
 
 
 def _transverse_coordinates(
-    transverse_dim: int,
-    amplitudes: Array,
-    rng: np.random.Generator,
-    balanced: bool,
+    transverse_dim: int, amplitudes: Array, rng: np.random.Generator, balanced: bool
 ) -> Array:
     """Return z[:, s] with norm at most one for one cluster.
 
@@ -278,9 +265,7 @@ def generate_multiscale_dataset(
     Q = _orthonormal_columns(ambient_dim, total_basis_dim, rng, basis)
 
     if model == "orthogonal_tubes":
-        tube_bases = np.empty(
-            (n_clusters, ambient_dim, tube_dim), dtype=np.float64
-        )
+        tube_bases = np.empty((n_clusters, ambient_dim, tube_dim), dtype=np.float64)
         central_directions = np.empty((ambient_dim, n_clusters), dtype=np.float64)
         for i in range(n_clusters):
             block = Q[:, i * tube_dim : (i + 1) * tube_dim]
@@ -306,9 +291,7 @@ def generate_multiscale_dataset(
 
         if model == "orthogonal_tubes":
             V_i = tube_bases[i, :, 1:]
-            z_i = _transverse_coordinates(
-                tube_dim - 1, a_i, rng, balanced_transverse
-            )
+            z_i = _transverse_coordinates(tube_dim - 1, a_i, rng, balanced_transverse)
             transverse = V_i @ z_i
         else:
             # Arbitrary ambient perturbations: only remove the component along
@@ -320,10 +303,7 @@ def generate_multiscale_dataset(
             transverse /= np.maximum(norms, np.finfo(np.float64).tiny)
             transverse *= rng.random((1, columns_per_cluster))
 
-        X[:, start:stop] = (
-            u_i[:, None] * a_i[None, :]
-            + eta * transverse * a_i[None, :]
-        )
+        X[:, start:stop] = u_i[:, None] * a_i[None, :] + eta * transverse * a_i[None, :]
 
     metadata: dict[str, Any] = {
         "model": model,

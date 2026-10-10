@@ -61,4 +61,3 @@ def save_results(results, config_path, output_dir):
         rows.append(row)
 
     pd.DataFrame(rows).to_csv(output_dir / "summary.csv", index=False)
-    output_dir.mkdir(parents=True, exist_ok=True)

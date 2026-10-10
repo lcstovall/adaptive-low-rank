@@ -9,6 +9,13 @@ description = "Adaptive algorithms for low-rank matrix approximation"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {file = "LICENSE"}
+keywords = ["low-rank approximation", "column subset selection", "adaptive sampling"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
 authors = [
     {name = "Luke Stovall"},
     {name = "Kevin Miller"},
@@ -21,7 +28,6 @@ dependencies = [
     "PyYAML>=6.0",
     "scikit-learn>=1.2",
     "pillow>=9.0",
-    "graphlearning>=1.7.5",
 ]
 
 [project.optional-dependencies]

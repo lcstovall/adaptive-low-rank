@@ -38,9 +38,7 @@ def generate_theory_curves(X, max_k, alphas):
         for r in range(1, min(k, len(singular_values_squared) - 1) + 1):
             tail_energy = np.sum(singular_values_squared[r:])
             epsilon_a = bisect_as(k, r, frobenius_norm_squared, tail_energy)
-            epsilon_b = bisect_bm(
-                k, r, alpha_mass, frobenius_norm_squared, tail_energy
-            )
+            epsilon_b = bisect_bm(k, r, alpha_mass, frobenius_norm_squared, tail_energy)
             if epsilon_a is not None:
                 opt_a = (1 + epsilon_a) * tail_energy / frobenius_norm_squared
                 optimal_as = min(optimal_as, opt_a)
@@ -130,11 +128,7 @@ def bisect_bm(k, r, alpha_mass, X_fro_sq, phi_r, tol=1e-7):
         raise ValueError("k, r, X_fro_sq, phi_r, and tol must be positive")
 
     def required_iterations(epsilon):
-        return (
-            r / epsilon
-            + r * np.log(X_fro_sq / (epsilon * phi_r))
-            - alpha_mass
-        )
+        return r / epsilon + r * np.log(X_fro_sq / (epsilon * phi_r)) - alpha_mass
 
     lower = tol
     upper = 1.0

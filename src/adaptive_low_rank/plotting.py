@@ -69,7 +69,7 @@ def plot_residuals(
     name="residuals",
     n_candidates=None,
     compute_optimal=False,
-    logx=False
+    logx=False,
 ):
     """
     Plot normalized residual curves.
@@ -213,8 +213,7 @@ def plot_residuals(
     plotted_values = plotted_values[np.isfinite(plotted_values) & (plotted_values > 0)]
     log_span = np.log10(plotted_values.max() / plotted_values.min())
     ax.set_ylim(
-        bottom=ax.get_ylim()[0],
-        top=plotted_values.max() * 10 ** (0.04 * log_span),
+        bottom=ax.get_ylim()[0], top=plotted_values.max() * 10 ** (0.04 * log_span)
     )
 
     if logx:
@@ -227,9 +226,7 @@ def plot_residuals(
     ax.yaxis.set_minor_locator(FixedLocator(labeled_minor_ticks))
 
     ax.set_xlabel(r"Number of Selected Columns ($k$)", fontsize=FONT_SIZE)
-    ax.set_ylabel(
-        r"Normalized Residual $(\|R_k\|_F / \|R_0\|_F)$", fontsize=FONT_SIZE
-    )
+    ax.set_ylabel(r"Normalized Residual $(\|R_k\|_F / \|R_0\|_F)$", fontsize=FONT_SIZE)
     ax.tick_params(axis="both", which="both", labelsize=FONT_SIZE)
 
     ax.grid(True, which="both", axis="y")
@@ -304,11 +301,7 @@ def plot_theory_curves(
             results, "adaptive", max_k
         )
         batchmax_iterations, batchmax_empirical = empirical_trace_curve(
-            results,
-            "batch_max",
-            max_k,
-            batchmax_n_candidates,
-            first_run_only=True,
+            results, "batch_max", max_k, batchmax_n_candidates, first_run_only=True
         )
         for x, y, color, marker, label in [
             (
@@ -343,10 +336,7 @@ def plot_theory_curves(
     positive_values = plotted_values[plotted_values > 0]
     y_min, y_max = positive_values.min(), positive_values.max()
     log_span = np.log10(y_max / y_min)
-    ax.set_ylim(
-        bottom=max(y_min / 2.0, 1e-16),
-        top=y_max * 10 ** (0.04 * log_span),
-    )
+    ax.set_ylim(bottom=max(y_min / 2.0, 1e-16), top=y_max * 10 ** (0.04 * log_span))
 
     fig.canvas.draw()
     labeled_minor_ticks = [
@@ -355,9 +345,7 @@ def plot_theory_curves(
     ax.yaxis.set_minor_locator(FixedLocator(labeled_minor_ticks))
 
     ax.set_xlabel(r"Number of Selected Columns ($k$)", fontsize=FONT_SIZE)
-    ax.set_ylabel(
-        r"Normalized Residual $(\|R_k\|_F / \|R_0\|_F)$", fontsize=FONT_SIZE
-    )
+    ax.set_ylabel(r"Normalized Residual $(\|R_k\|_F / \|R_0\|_F)$", fontsize=FONT_SIZE)
     ax.tick_params(axis="both", which="both", labelsize=FONT_SIZE)
 
     handles, labels = ax.get_legend_handles_labels()
@@ -519,14 +507,10 @@ def runtime_table(results, fixed_d=None, fixed_n=None):
     relative_runtimes = relative_runtimes[keep_indices]
 
     mean_df = pd.DataFrame(
-        relative_runtimes.mean(axis=1).T,
-        index=index,
-        columns=keep_algorithms,
+        relative_runtimes.mean(axis=1).T, index=index, columns=keep_algorithms
     )
     std_df = pd.DataFrame(
-        relative_runtimes.std(axis=1).T,
-        index=index,
-        columns=keep_algorithms,
+        relative_runtimes.std(axis=1).T, index=index, columns=keep_algorithms
     )
 
     return mean_df, std_df
@@ -561,7 +545,9 @@ def style_runtime_table(mean_df, std_df, sig_figs=3, caption=None):
 
     display_df = pd.DataFrame(
         {
-            col: [f"{fmt(m)} \u00b1 {fmt(s)}" for m, s in zip(mean_df[col], std_df[col])]
+            col: [
+                f"{fmt(m)} \u00b1 {fmt(s)}" for m, s in zip(mean_df[col], std_df[col])
+            ]
             for col in mean_df.columns
         },
         index=mean_df.index,
