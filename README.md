@@ -61,13 +61,6 @@ To run the plotting notebooks as well, install the notebook dependencies:
 pip install -e ".[notebooks]"
 ```
 
-Alternatively, install the package with notebook dependencies via the
-requirements file (it simply runs `pip install -e ".[notebooks]"`):
-
-```bash
-pip install -r requirements.txt
-```
-
 ## Notebooks
 
 Run an experiment first; each notebook reads from `results/<dataset>/` and
@@ -142,7 +135,6 @@ adaptive-low-rank/
 ├── LICENSE
 ├── pyproject.toml
 ├── README.md
-├── requirements.txt
 └── .gitignore
 ```
 
