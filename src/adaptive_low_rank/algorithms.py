@@ -399,28 +399,3 @@ class Random(LowRankAlgorithm):
             return 0, None
 
         return (int(random_state.choice(candidates)), None)
-
-
-class Sequential(LowRankAlgorithm):
-    """Select columns in their original order, starting with column zero."""
-
-    name = "sequential_selection"
-
-    def select_columns(self, *args, **kwargs) -> AlgorithmResult:
-        self._next_index = 0
-
-        return super().select_columns(*args, **kwargs)
-
-    def select_index(
-        self,
-        R: np.ndarray,
-        k: int,
-        random_state: np.random.RandomState,
-        n_candidates: int | None = None,
-        V: np.ndarray | None = None,
-        compute_alpha: bool = False,
-    ) -> tuple[int, float | None]:
-        index = self._next_index
-        self._next_index += 1
-
-        return index, None
