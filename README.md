@@ -18,7 +18,6 @@ configurable benchmarking through YAML configuration files.
   - Greedy
   - Greedy++
   - Random Selection
-  - Sequential Selection
 - Configurable experiments using YAML
 - Automatic benchmarking across parameter grids
 - Publication-quality plots of
@@ -222,7 +221,6 @@ Algorithm names used as keys under `algorithms:`:
 | `greedy` | Greedy |
 | `greedy_pp` | Greedy++ |
 | `random` | Random Selection |
-| `sequential` | Sequential Selection |
 
 Example
 
