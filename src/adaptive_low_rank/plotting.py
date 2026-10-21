@@ -35,6 +35,11 @@ def _is_batch_max(algorithm):
 
 def _algorithm_label(algorithm):
     """Return the legend label for an algorithm name."""
+    if algorithm.lower().replace("_", " ").replace("-", " ") in {
+        "adaptive",
+        "adaptive sampling",
+    }:
+        return "ARS"
     if algorithm == "greedy_pp":
         return "Greedy++"
     if _is_batch_max(algorithm):
@@ -253,6 +258,158 @@ def plot_residuals(
     plt.show()
 
 
+def plot_residual_grid(
+    results,
+    row_param,
+    col_param,
+    output_dir,
+    name,
+    n_candidates=None,
+    ylim=(1e-3, 2.0),
+):
+    """
+    Plot a grid of normalized residual curves from a two-parameter sweep.
+
+    Parameters
+    ----------
+    results : list
+        Benchmark results in which each run's parameters include ``row_param``
+        and ``col_param``.
+
+    row_param, col_param : str
+        Swept parameters shown along the rows and columns of the grid.
+
+    output_dir : str or Path
+        Directory in which to save the figure.
+
+    name : str
+        Filename stem; the figure is saved as ``{name}_residuals.png``.
+
+    n_candidates : int, optional
+        Batch-Max candidate count to plot. If omitted, the first value
+        encountered for Batch-Max is used. Other algorithms are unaffected.
+
+    ylim : tuple of float, default=(1e-3, 2.0)
+        Shared y-axis limits, fixed so that the spread across random seeds
+        does not stretch the axis.
+
+    Raises
+    ------
+    ValueError
+        If a grid cell contains several parameter settings for one algorithm.
+    """
+
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if n_candidates is None:
+        n_candidates = next(
+            (
+                run["parameters"]["n_candidates"]
+                for run in results
+                if _is_batch_max(run["algorithm"])
+                and "n_candidates" in run["parameters"]
+            ),
+            None,
+        )
+    results = [
+        run
+        for run in results
+        if not (
+            _is_batch_max(run["algorithm"])
+            and n_candidates is not None
+            and run["parameters"].get("n_candidates") != n_candidates
+        )
+    ]
+
+    sweep_params = {row_param, col_param}
+    row_values = sorted({run["parameters"][row_param] for run in results})
+    col_values = sorted({run["parameters"][col_param] for run in results})
+
+    cells = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    for run in results:
+        params = run["parameters"]
+        settings = tuple(
+            sorted(
+                (key, value)
+                for key, value in params.items()
+                if key != "random_state" and key not in sweep_params
+            )
+        )
+        residuals = run["result"].residuals / run["init_res"]
+        cell = cells[(params[row_param], params[col_param])]
+        cell[run["algorithm"]][settings].append(residuals)
+
+    color_cycle = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    algorithm_names = sorted({run["algorithm"] for run in results})
+    colors = {alg: color_cycle[i % len(color_cycle)] for i, alg in enumerate(algorithm_names)}
+
+    fig, axes = plt.subplots(
+        len(row_values),
+        len(col_values),
+        figsize=(4.5 * len(col_values), 4 * len(row_values)),
+        sharex=True,
+        sharey=True,
+        squeeze=False,
+    )
+
+    for i, row_value in enumerate(row_values):
+        for j, col_value in enumerate(col_values):
+            ax = axes[i, j]
+            for algorithm, by_settings in cells[(row_value, col_value)].items():
+                if len(by_settings) > 1:
+                    raise ValueError(
+                        f"{algorithm} has several parameter settings in one cell."
+                    )
+                curves = np.array(next(iter(by_settings.values())))
+                mean = curves.mean(axis=0)
+                x = np.arange(1, len(mean) + 1)
+
+                ax.plot(
+                    x,
+                    mean,
+                    color=colors[algorithm],
+                    linewidth=1.6,
+                    marker=_marker_for_algorithm(algorithm),
+                    markevery=_marker_positions(len(x), max_markers=8),
+                    markersize=4,
+                    label=_algorithm_label(algorithm),
+                )
+                if len(curves) > 1:
+                    std = curves.std(axis=0)
+                    ax.fill_between(
+                        x,
+                        np.maximum(mean - std, ylim[0] / 10),
+                        mean + std,
+                        color=colors[algorithm],
+                        alpha=0.10,
+                    )
+
+            ax.set_yscale("log")
+            ax.set_ylim(*ylim)
+            ax.grid(True, which="major", axis="y", alpha=0.35)
+            ax.set_title(f"{col_param}={col_value:g}", fontsize=10)
+            ax.tick_params(axis="both", labelsize=8)
+            if j == 0:
+                ax.set_ylabel(
+                    f"{row_param}={row_value:g}\nNormalized residual", fontsize=10
+                )
+            if i == len(row_values) - 1:
+                ax.set_xlabel(r"Number of selected columns ($k$)", fontsize=10)
+
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    fig.legend(
+        handles,
+        labels,
+        loc="upper center",
+        ncol=len(labels),
+        bbox_to_anchor=(0.5, 0.985),
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
+
+    fig.savefig(output_dir / f"{name}_residuals.png", dpi=150, bbox_inches="tight")
+
+
 def plot_theory_curves(
     X,
     max_k,
@@ -294,7 +451,7 @@ def plot_theory_curves(
         color=adaptive_color,
         linestyle=":",
         linewidth=2.0,
-        label="Adaptive (theory)",
+        label="ARS (theory)",
     )
     ax.plot(
         iterations,
@@ -318,7 +475,7 @@ def plot_theory_curves(
                 adaptive_empirical,
                 adaptive_color,
                 "o",
-                "Adaptive (empirical)",
+                "ARS (empirical)",
             ),
             (
                 batchmax_iterations,

@@ -116,6 +116,7 @@ adaptive-low-rank/
 ├── scripts/
 │   ├── run_all_experiments.py
 │   ├── run_experiment.py   # Main experiment runner
+│   ├── run_orthogonal_tubes_grids.py
 │   └── runtime_scaling.py
 │
 ├── src/
@@ -199,6 +200,18 @@ Synthetic datasets are generated automatically when an experiment runs and
 configuration instead; see `configs/orthogonal_tubes_1.yml` and
 `configs/orthogonal_tubes_2.yml`. Generated matrices are saved as
 `data/<dataset>.npz`.
+
+### Orthogonal-Tubes Parameter Grids
+
+`scripts/run_orthogonal_tubes_grids.py` runs two grids on top of
+the `orthogonal_tubes_1` settings (`eta` and `condition_number`, each against
+`columns_per_cluster`) and saves one residual figure per grid to `figures/`.
+The grid values are set at the top of the script. Datasets are generated in
+memory, so `data/` is not modified.
+
+```bash
+python scripts/run_orthogonal_tubes_grids.py
+```
 
 ---
 
