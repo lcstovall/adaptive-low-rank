@@ -258,6 +258,15 @@ def plot_residuals(
     plt.show()
 
 
+def _format_value(value):
+    """Format a sweep value, using powers of ten where exact."""
+    if value > 0 and value != 1:
+        exponent = np.log10(value)
+        if abs(exponent - round(exponent)) < 1e-9 and abs(exponent) >= 2:
+            return rf"$10^{{{round(exponent)}}}$"
+    return f"{value:g}"
+
+
 def plot_residual_grid(
     results,
     row_param,
@@ -266,6 +275,8 @@ def plot_residual_grid(
     name,
     n_candidates=None,
     ylim=(1e-3, 2.0),
+    font_size=15,
+    param_labels=None,
 ):
     """
     Plot a grid of normalized residual curves from a two-parameter sweep.
@@ -292,6 +303,14 @@ def plot_residual_grid(
     ylim : tuple of float, default=(1e-3, 2.0)
         Shared y-axis limits, fixed so that the spread across random seeds
         does not stretch the axis.
+
+    font_size : float, default=10
+        Font size for titles, axis labels and the legend; tick labels are
+        two points smaller.
+
+    param_labels : dict, optional
+        Maps parameter names to display labels (mathtext allowed), used in the
+        column titles and row labels. Missing names are shown as-is.
 
     Raises
     ------
@@ -344,6 +363,11 @@ def plot_residual_grid(
     algorithm_names = sorted({run["algorithm"] for run in results})
     colors = {alg: color_cycle[i % len(color_cycle)] for i, alg in enumerate(algorithm_names)}
 
+    param_labels = param_labels or {}
+
+    def label_text(param, value):
+        return f"{param_labels.get(param, param)} = {_format_value(value)}"
+
     fig, axes = plt.subplots(
         len(row_values),
         len(col_values),
@@ -388,24 +412,59 @@ def plot_residual_grid(
             ax.set_yscale("log")
             ax.set_ylim(*ylim)
             ax.grid(True, which="major", axis="y", alpha=0.35)
-            ax.set_title(f"{col_param}={col_value:g}", fontsize=10)
-            ax.tick_params(axis="both", labelsize=8)
+            ax.tick_params(axis="both", labelsize=font_size - 2)
+            if i == 0:
+                ax.set_title(label_text(col_param, col_value), fontsize=font_size)
             if j == 0:
-                ax.set_ylabel(
-                    f"{row_param}={row_value:g}\nNormalized residual", fontsize=10
-                )
-            if i == len(row_values) - 1:
-                ax.set_xlabel(r"Number of selected columns ($k$)", fontsize=10)
+                ax.set_ylabel(label_text(row_param, row_value), fontsize=font_size)
 
     handles, labels = axes[0, 0].get_legend_handles_labels()
+
+    # Keep only the minor ticks that carry a label.
+    fig.canvas.draw()
+    for ax in axes.ravel():
+        labeled_minor_ticks = [
+            tick.get_loc()
+            for tick in ax.yaxis.get_minor_ticks()
+            if tick.label1.get_text()
+        ]
+        ax.yaxis.set_minor_locator(FixedLocator(labeled_minor_ticks))
+    fig.tight_layout()
+
+    # Place shared labels and the legend relative to the laid-out axes.
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    boxes = [
+        ax.get_tightbbox(renderer).transformed(fig.transFigure.inverted())
+        for ax in axes.ravel()
+    ]
+    left = min(box.x0 for box in boxes)
+    bottom = min(box.y0 for box in boxes)
+    pad = 0.7 * font_size / 72
+    pad_x = pad / fig.get_figwidth()
+    pad_y = pad / fig.get_figheight()
+
+    fig.supylabel(
+        r"Normalized Residual $(\|R_k\|_F / \|R_0\|_F)$",
+        fontsize=font_size,
+        x=left - pad_x,
+        ha="right",
+    )
+    fig.supxlabel(
+        r"Number of selected columns ($k$)",
+        fontsize=font_size,
+        y=bottom - pad_y,
+        va="top",
+    )
+    legend_top = bottom - pad_y - 1.6 * font_size / 72 / fig.get_figheight()
     fig.legend(
         handles,
         labels,
         loc="upper center",
         ncol=len(labels),
-        bbox_to_anchor=(0.5, 0.985),
+        bbox_to_anchor=(0.5, legend_top),
+        fontsize=font_size,
     )
-    fig.tight_layout(rect=(0, 0, 1, 0.96))
 
     fig.savefig(output_dir / f"{name}_residuals.png", dpi=150, bbox_inches="tight")
 

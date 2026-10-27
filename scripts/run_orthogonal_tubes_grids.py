@@ -6,6 +6,8 @@ dataset parameters per cell. Datasets are generated in memory, so
 ``results/<grid name>/`` and figures to ``figures/<grid name>_residuals.png``.
 """
 
+import argparse
+import pickle
 from pathlib import Path
 
 import matplotlib
@@ -29,6 +31,12 @@ COLUMNS_PER_CLUSTER = [15, 30, 45]
 GRIDS = {
     "orthogonal_tubes_eta_columns": ("eta", [0.025, 0.05, 0.1]),
     "orthogonal_tubes_condition_columns": ("condition_number", [1e2, 1e4, 1e6]),
+}
+
+PARAM_LABELS = {
+    "eta": r"$\eta$",
+    "condition_number": r"$\kappa$",
+    "columns_per_cluster": "Columns per cluster",
 }
 
 DATASET_KEYS = (
@@ -60,20 +68,37 @@ def run_grid(base, runs, row_param, row_values):
 
 
 def main():
-    with open(BASE_CONFIG) as f:
-        base = yaml.safe_load(f)
-    base["condition_number"] = float(base["condition_number"])
-    runs = generate_runs(base)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--replot",
+        action="store_true",
+        help="Plot from the saved results.pkl files without rerunning.",
+    )
+    parser.add_argument("--font-size", type=float, default=10)
+    args = parser.parse_args()
+
+    if not args.replot:
+        with open(BASE_CONFIG) as f:
+            base = yaml.safe_load(f)
+        base["condition_number"] = float(base["condition_number"])
+        runs = generate_runs(base)
 
     for name, (row_param, row_values) in GRIDS.items():
-        results = run_grid(base, runs, row_param, row_values)
-        save_results(results, BASE_CONFIG, ROOT / "results" / name)
+        results_dir = ROOT / "results" / name
+        if args.replot:
+            with open(results_dir / "results.pkl", "rb") as f:
+                results = pickle.load(f)
+        else:
+            results = run_grid(base, runs, row_param, row_values)
+            save_results(results, BASE_CONFIG, results_dir)
         plot_residual_grid(
             results,
             row_param=row_param,
             col_param="columns_per_cluster",
             output_dir=ROOT / "figures",
             name=name,
+            font_size=args.font_size,
+            param_labels=PARAM_LABELS,
         )
         plt.close("all")
 

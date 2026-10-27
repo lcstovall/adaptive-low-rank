@@ -12,23 +12,23 @@ algorithms:
 
   adaptive:
     k: [150]
-    random_state: [0,1,2,3,4,5,6,7,8,9,10]
+    random_state: [0,1,2,3,4,5,6,7,8,9]
 
   greedy:
     k: [150]
 
   random:
     k: [150]
-    random_state: [0,1,2,3,4,5,6,7,8,9,10]
+    random_state: [0,1,2,3,4,5,6,7,8,9]
 
   batch_max:
     k: [150]
-    random_state: [0,1,2,3,4,5,6,7,8,9,10]
+    random_state: [0,1,2,3,4,5,6,7,8,9]
     n_candidates: [5, 10, 25]
     compute_alpha: true
     
 
   greedy_pp:
     k: [150]
-    random_state: [0,1,2,3,4,5,6,7,8,9,10]
+    random_state: [0,1,2,3,4,5,6,7,8,9]
     n_candidates: [10]
