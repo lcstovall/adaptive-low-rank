@@ -62,14 +62,15 @@ pip install -e ".[notebooks]"
 
 ## Notebooks
 
-Run an experiment first; each notebook reads from `results/<dataset>/` and
-writes figures to `figures/`.
+Run an experiment first. The plotting notebooks read from
+`results/<dataset>/` and write figures to `figures/`. The runtime tables
+notebook reads the runtime-scaling results and writes CSV tables under
+`results/runtime_scaling/tables/`.
 
 | Notebook | Purpose |
 | --- | --- |
 | `plotting_residuals.ipynb` | Normalized residual curves |
 | `plotting_alphas.ipynb` | Batch-Max alpha trajectories |
-| `plotting_synthetic.ipynb` | Residual plots for synthetic datasets |
 | `plotting_theory.ipynb` | Theory vs. empirical residual curves |
 | `runtime_tables.ipynb` | Runtime-scaling tables |
 
@@ -94,12 +95,12 @@ filename affects generation. `dataset_type` is `decay` (default) or
 To regenerate a dataset after changing its config, delete its `.npz` file or
 call `ensure_synthetic_dataset(config, force=True)`.
 
-For example, `configs/exp.yml` produces `data/exp.npz`.
+For example, `configs/poly.yml` produces `data/poly.npz`.
 
 The generators live in `adaptive_low_rank.synthetic`
 (`generate_multiscale_dataset`, `ensure_synthetic_dataset`) and
 `adaptive_low_rank.datasets` (`generate_synthetic_dataset`). A generated
-dataset can be loaded with `load_dataset("exp")`.
+dataset can be loaded with `load_dataset("poly")`.
 
 ---
 
@@ -197,17 +198,16 @@ Synthetic datasets are generated automatically when an experiment runs and
 `synthetic: true` and provide `decay_type` (`exp` or `poly`) and
 `decay_param`. The optional `n`, `d`, and `random_state` fields default to
 `2000`, `2000`, and `0`. Model-based multiscale datasets use model-specific
-configuration instead; see `configs/orthogonal_tubes_1.yml` and
-`configs/orthogonal_tubes_2.yml`. Generated matrices are saved as
-`data/<dataset>.npz`.
+configuration instead; see `configs/orthogonal_tubes.yml`. Generated
+matrices are saved as `data/<dataset>.npz`.
 
 ### Orthogonal-Tubes Parameter Grids
 
-`scripts/run_orthogonal_tubes_grids.py` runs two grids on top of
-the `orthogonal_tubes_1` settings (`eta` and `condition_number`, each against
-`columns_per_cluster`) and saves one residual figure per grid to `figures/`.
-The grid values are set at the top of the script. Datasets are generated in
-memory, so `data/` is not modified.
+`scripts/run_orthogonal_tubes_grids.py` runs two parameter grids using
+`configs/orthogonal_tubes.yml` as the base configuration: `eta` and
+`condition_number`, each varied against `columns_per_cluster`. It saves one
+residual figure per grid to `figures/`. The grid values are set at the top of
+the script. Datasets are generated in memory, so `data/` is not modified.
 
 ```bash
 python scripts/run_orthogonal_tubes_grids.py
@@ -291,6 +291,14 @@ config.yml
 The experiment runner does not generate plots. Use the plotting notebooks or
 plotting helpers separately to create figures.
 
+Runtime measurement is disabled by default. Set `compute_runtime: true` for
+an algorithm run when runtime data is needed. `summary.csv` contains the
+algorithm and run parameters, plus:
+
+- `final_residual`
+- `runtime`, if computed
+- `final_gains_bm` and `final_gains_as`, if Batch-Max diagnostics are available
+
 ---
 
 ## Runtime Scaling
@@ -303,20 +311,6 @@ benchmarks Adaptive, Batch-Max, Greedy, and Greedy++ on synthetic matrices of
 increasing size and saves `results/runtime_scaling/runtime_scaling.pkl`.
 `notebooks/runtime_tables.ipynb` turns it into mean and standard-deviation
 CSV tables under `results/runtime_scaling/tables/`.
-
----
-
-## License
-
-See [LICENSE](LICENSE).
-
-Runtime measurement is disabled by default. Set `compute_runtime: true` for
-an algorithm run when runtime data is needed. `summary.csv` contains the
-algorithm and run parameters, plus:
-
-- `final_residual`
-- `runtime`, if computed
-- `final_gains_bm` and `final_gains_as`, if Batch-Max diagnostics are available
 
 ---
 
@@ -365,8 +359,8 @@ It will automatically work with the benchmarking framework.
 ## Dependencies
 
 The package dependencies are declared in `pyproject.toml`: NumPy, SciPy,
-Matplotlib, pandas, PyYAML, scikit-learn, Pillow, and GraphLearning. Install
-the optional notebook tools with `pip install -e ".[notebooks]"`.
+Matplotlib, pandas, PyYAML, scikit-learn, and Pillow. Install the optional
+notebook tools with `pip install -e ".[notebooks]"`.
 
 Install the core package dependencies with
 

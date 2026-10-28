@@ -5,17 +5,24 @@ returns a NumPy matrix. `mnist`, `cifar10`, and `yearprediction` put features
 in rows and samples in columns. `coil20` returns one flattened image per row.
 The other loaders retain the orientation of their source or generated matrix.
 
-| Identifier | Source and loading behavior | Local input |
-| --- | --- | --- |
-| `interactions` | Loads the `B` matrix from the MATLAB file. | `data/interactions.mat` |
-| `mnist` | Fetches `mnist_784` from OpenML with scikit-learn and transposes the data. | OpenML access; the data may be cached locally by scikit-learn. |
-| `cifar10` | Loads the local CIFAR-10 feature archive and transposes the data. | `data/cifar10_simclr.npz` |
-| `coil20` | Reads every PNG in sorted order, flattens each image, and returns one image per row. | `data/coil-20-proc/` |
-| `yearprediction` | Reads the comma-separated file, removes the first column (the target), and transposes the feature matrix. | `data/YearPredictionMSD.txt` |
-| Any config with `synthetic: true` (e.g. `exp`, `poly`) | Generates the matrix `X` from the config if missing, then loads it from a compressed NumPy archive. | `data/<identifier>.npz` |
+- `interactions` loads the `B` matrix from the MATLAB file.
+  - Local input: `data/interactions.mat`
+- `mnist` fetches `mnist_784` from OpenML with scikit-learn and transposes
+  the data. The data may be cached locally by scikit-learn.
+- `cifar10` loads the local CIFAR-10 feature archive and transposes the data.
+  - Local input: `data/cifar10_simclr.npz`
+- `coil20` reads every PNG in sorted order, flattens each image, and returns
+  one image per row.
+  - Local input: `data/coil-20-proc/`
+- `yearprediction` reads the comma-separated file, removes the first column
+  (the target), and transposes the feature matrix.
+  - Local input: `data/YearPredictionMSD.txt`
+- Any config with `synthetic: true` (e.g. `poly`) generates the matrix `X`
+  from the config if missing, then loads it from a compressed NumPy archive.
+  - Local input: `data/<identifier>.npz`
 
 Only `data/interactions.mat` is tracked as a dataset input. The other local
-inputs in the table are not included in a clean clone.
+inputs above are not included in a clean clone.
 
 ### Data availability
 
@@ -35,7 +42,7 @@ The `mnist` loader fetches `mnist_784` from
 access. Synthetic datasets are generated from their experiment
 configurations when needed; their `.npz` archives are not committed.
 
-Keep the filenames and directory layout shown in the table for local inputs.
+Keep the filenames and directory layout shown above for local inputs.
 Follow the respective terms and attribution requirements when obtaining
 external datasets:
 
@@ -47,10 +54,10 @@ external datasets:
 ### Reproducibility notes
 
 - Synthetic matrices are generated from the matching YAML configuration using
-	polynomial or exponential singular-value decay and normalized to unit
-	Frobenius norm.
+  polynomial or exponential singular-value decay and normalized to unit
+  Frobenius norm.
 - The loader removes the YearPredictionMSD target column before returning the
-	feature matrix. It does not normalize the real-valued datasets.
+  feature matrix. It does not normalize the real-valued datasets.
 
 ### Generating synthetic datasets
 

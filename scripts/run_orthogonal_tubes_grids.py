@@ -1,9 +1,9 @@
-"""Run and plot the two orthogonal-tubes parameter grids.
+"""Run and plot two orthogonal-tubes parameter grids.
 
-Both grids start from ``configs/orthogonal_tubes_1.yml`` and override two of its
-dataset parameters per cell. Datasets are generated in memory, so
-``data/orthogonal_tubes_1.npz`` is not modified. Results are saved to
-``results/<grid name>/`` and figures to ``figures/<grid name>_residuals.png``.
+Both grids use ``configs/orthogonal_tubes.yml`` as their base configuration
+and vary dataset parameters per cell. Datasets are generated in memory, so
+``data/`` is not modified. Results are saved to ``results/<grid name>/`` and
+figures to ``figures/<grid name>_residuals.png``.
 """
 
 import argparse
