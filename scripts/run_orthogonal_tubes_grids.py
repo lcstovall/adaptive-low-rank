@@ -74,7 +74,7 @@ def main():
         action="store_true",
         help="Plot from the saved results.pkl files without rerunning.",
     )
-    parser.add_argument("--font-size", type=float, default=10)
+    parser.add_argument("--font-size", type=float, default=15)
     args = parser.parse_args()
 
     if not args.replot:
