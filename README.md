@@ -102,6 +102,30 @@ The generators live in `adaptive_low_rank.synthetic`
 `adaptive_low_rank.datasets` (`generate_synthetic_dataset`). A generated
 dataset can be loaded with `load_dataset("poly")`.
 
+#### Tight Frame Union Model
+
+The **tight frame union** model generates union-of-subspaces datasets where each
+subspace is populated by a tight frame. This creates structured datasets with
+known energy hierarchies perfect for testing column selection algorithms.
+
+For detailed documentation, parameter reference, and examples, see
+[`docs/tight_frames.md`](./docs/tight_frames.md).
+
+Quick example:
+
+```python
+from src.adaptive_low_rank.synthetic import generate_multiscale_dataset
+
+ds = generate_multiscale_dataset(
+    model='tight_frame_union',
+    n_clusters=5,            # 5 orthogonal subspaces
+    columns_per_cluster=10,  # 10 frame vectors per subspace
+    tube_dim=4,              # 4D subspaces
+    decay_rate='polynomial', # Energy decay pattern
+    seed=0
+)
+```
+
 ---
 
 ## Repository Structure
