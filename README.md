@@ -71,6 +71,7 @@ notebook reads the runtime-scaling results and writes CSV tables under
 | --- | --- |
 | `plotting_residuals.ipynb` | Normalized residual curves |
 | `plotting_alphas.ipynb` | Batch-Max alpha trajectories |
+| `tight_frames_comparison.ipynb` | Tight-frame residual and alpha comparisons |
 | `plotting_theory.ipynb` | Theory vs. empirical residual curves |
 | `runtime_tables.ipynb` | Runtime-scaling tables |
 
@@ -108,11 +109,6 @@ The **tight frame union** model generates union-of-subspaces datasets where each
 subspace is populated by a tight frame. This creates structured datasets with
 known energy hierarchies perfect for testing column selection algorithms.
 
-For detailed documentation, parameter reference, and examples, see
-[`docs/tight_frames.md`](./docs/tight_frames.md).
-
-Quick example:
-
 ```python
 from src.adaptive_low_rank.synthetic import generate_multiscale_dataset
 
@@ -125,6 +121,14 @@ ds = generate_multiscale_dataset(
     seed=0
 )
 ```
+
+**Key parameters:**
+- `n_clusters`: Number of tight frames (subspaces)
+- `columns_per_cluster`: Vectors per frame
+- `tube_dim`: Dimension of each subspace
+- `high_energy`: Highest frame level (default: 1.0)
+- `condition_number`: Ratio of highest to lowest frame level (default: 1e4)
+- `decay_rate`: Energy decay pattern (`'linear'`, `'polynomial'`, or `'exponential'`)
 
 ---
 

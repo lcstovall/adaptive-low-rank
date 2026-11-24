@@ -79,10 +79,10 @@ class MultiscaleDataset:
     labels: NDArray[np.int64]
     central_energies: Array
     central_directions: Array
-    amplitudes: Array
+    amplitudes: Array | None
     model: str
     metadata: dict[str, Any]
-    tube_bases: Array | None = None
+    tube_bases: list[Array] | Array | None = None
 
     def save(self, path: str | Path) -> Path:
         """Save the dataset and its construction metadata to a compressed NPZ."""
@@ -93,11 +93,20 @@ class MultiscaleDataset:
             "labels": self.labels,
             "central_energies": self.central_energies,
             "central_directions": self.central_directions,
-            "amplitudes": self.amplitudes,
             "model": np.asarray(self.model),
             "metadata_json": np.asarray(json.dumps(self.metadata, sort_keys=True)),
         }
-        if self.tube_bases is not None:
+        if self.amplitudes is not None:
+            payload["amplitudes"] = self.amplitudes
+        if isinstance(self.tube_bases, list):
+            if len({block.shape[1] for block in self.tube_bases}) == 1:
+                payload["tube_bases"] = np.stack(self.tube_bases)
+            else:
+                payload["tube_bases"] = np.concatenate(self.tube_bases, axis=1)
+                payload["tube_basis_offsets"] = np.cumsum(
+                    [0] + [block.shape[1] for block in self.tube_bases]
+                )
+        elif self.tube_bases is not None:
             payload["tube_bases"] = self.tube_bases
         np.savez_compressed(destination, **payload)
         return destination
@@ -179,7 +188,7 @@ def _normalize_per_cluster_param(
     n_clusters: int,
     param_name: str,
     min_value: int = 1,
-) -> Array:
+) -> NDArray[np.int64]:
     """Convert per-cluster parameter from int or array to normalized array.
     
     Parameters
@@ -270,6 +279,55 @@ def _transverse_coordinates(
     return z
 
 
+def _validate_tight_frame_dimensions(
+    columns_per_cluster: NDArray[np.int64],
+    tube_dim: NDArray[np.int64],
+    cached_path: Path | None = None,
+) -> None:
+    invalid = np.flatnonzero(columns_per_cluster < tube_dim)
+    if invalid.size:
+        i = int(invalid[0])
+        message = (
+            f"Cluster {i}: columns_per_cluster={columns_per_cluster[i]} < "
+            f"tube_dim={tube_dim[i]}; a tight frame must span the full subspace"
+        )
+        if cached_path is not None:
+            message += f"; regenerate cached dataset {cached_path}"
+        raise ValueError(message)
+
+
+def _validate_cached_tight_frame_dimensions(path: Path) -> None:
+    with np.load(path, allow_pickle=False) as archive:
+        if "labels" not in archive or "tube_bases" not in archive:
+            raise ValueError(f"{path} lacks tight-frame basis metadata; regenerate the dataset")
+        labels = archive["labels"]
+        bases = archive["tube_bases"]
+        if bases.ndim == 3:
+            dimensions = np.full(bases.shape[0], bases.shape[2], dtype=np.int64)
+        elif bases.ndim == 2 and "tube_basis_offsets" in archive:
+            offsets = archive["tube_basis_offsets"]
+            if (
+                offsets.ndim != 1
+                or offsets.size < 2
+                or offsets[0] != 0
+                or offsets[-1] != bases.shape[1]
+                or np.any(np.diff(offsets) <= 0)
+            ):
+                raise ValueError(f"{path} has invalid tube basis offsets; regenerate the dataset")
+            dimensions = np.diff(offsets)
+        else:
+            raise ValueError(f"{path} has invalid tube bases; regenerate the dataset")
+        if (
+            labels.ndim != 1
+            or not np.issubdtype(labels.dtype, np.integer)
+            or np.any(labels < 0)
+            or np.any(labels >= len(dimensions))
+        ):
+            raise ValueError(f"{path} has invalid cluster labels; regenerate the dataset")
+        counts = np.bincount(labels, minlength=len(dimensions))
+        _validate_tight_frame_dimensions(counts, dimensions, cached_path=path)
+
+
 def _tight_frame_in_subspace(
     subspace_basis: Array,
     n_vectors: int,
@@ -278,9 +336,7 @@ def _tight_frame_in_subspace(
 ) -> Array:
     """Generate a tight frame within a given subspace.
 
-    Creates n_vectors frame vectors that lie in the subspace spanned by
-    subspace_basis and satisfy X @ X.T = frame_level * P, where P is the
-    projector onto the subspace.
+    Create equal-norm tight vectors spanning the supplied subspace.
 
     Parameters
     ----------
@@ -289,36 +345,35 @@ def _tight_frame_in_subspace(
     n_vectors : int
         Number of frame vectors to generate.
     frame_level : float
-        Level λ such that X @ X.T = λ * P.
+        Level λ such that X @ X.T = λ * P for the supplied subspace.
     rng : np.random.Generator
         Random number generator.
 
     Returns
     -------
     X : ndarray, shape (ambient_dim, n_vectors)
-        Tight frame vectors satisfying X @ X.T = frame_level * P.
+        Tight frame vectors satisfying X @ X.T = frame_level * P, where P
+        projects onto the supplied subspace.
     """
-    ambient_dim, subspace_dim = subspace_basis.shape
-
-    # To construct a tight frame with X @ X.T = λ * P:
-    # We need C (subspace_dim × n_vectors) such that C @ C.T = λ * I_subspace_dim
-    # This is achieved by taking an orthogonal matrix Q (subspace_dim × subspace_dim)
-    # and completing it to an m × n matrix C with orthonormal rows.
-    # However, for simplicity, we'll generate random coefficients and normalize
-    # so that the Frobenius norm gives us the right scaling.
-    
-    # Generate random matrix C in the subspace
-    C = rng.standard_normal((subspace_dim, n_vectors))
-    
-    # We want: trace(C @ C.T) = trace(λ * I_m) = λ * m
-    # Currently: trace(C @ C.T) = sum of squared norms of rows of C
-    current_trace = np.sum(C**2)
-    target_trace = frame_level * subspace_dim
-    C *= np.sqrt(target_trace / current_trace)
-    
-    # Map back to ambient space: X = B @ C
-    X = subspace_basis @ C
-    return X
+    subspace_dim = subspace_basis.shape[1]
+    # Real Fourier modes have orthonormal rows and constant column norm.
+    angles = 2 * np.pi * np.arange(n_vectors) / n_vectors
+    rows = []
+    if subspace_dim % 2:
+        rows.append(np.ones(n_vectors) / np.sqrt(n_vectors))
+    elif subspace_dim == n_vectors:
+        rows.extend(
+            [
+                np.ones(n_vectors) / np.sqrt(n_vectors),
+                (-1.0) ** np.arange(n_vectors) / np.sqrt(n_vectors),
+            ]
+        )
+    for frequency in range(1, (subspace_dim - len(rows)) // 2 + 1):
+        rows.append(np.sqrt(2 / n_vectors) * np.cos(frequency * angles))
+        rows.append(np.sqrt(2 / n_vectors) * np.sin(frequency * angles))
+    rotation, _ = np.linalg.qr(rng.standard_normal((subspace_dim, subspace_dim)))
+    coefficients = rotation @ np.asarray(rows)[:, rng.permutation(n_vectors)]
+    return np.sqrt(frame_level) * (subspace_basis @ coefficients)
 
 
 def generate_multiscale_dataset(
@@ -334,6 +389,7 @@ def generate_multiscale_dataset(
     amplitude_spread: float = 0.8,
     balanced_transverse: bool = True,
     basis: Literal["random", "coordinate"] = "random",
+    level_weights: Array | None = None,
     decay_rate: Literal["linear", "polynomial", "exponential"] = "polynomial",
     seed: int = 0,
 ) -> MultiscaleDataset:
@@ -349,8 +405,11 @@ def generate_multiscale_dataset(
         Number of vectors per cluster/subspace. Can be an int (same for all clusters)
         or an array of length n_clusters (different per cluster). For ``tight_frame_union``:
         frame vectors per subspace. For other models: scaled columns per cluster.
+    high_energy:
+        Highest energy level. Ignored if ``level_weights`` is provided.
     condition_number:
         Ratio between the largest and smallest prescribed central energies/frame levels.
+        Ignored if ``level_weights`` is provided.
     ambient_dim:
         Row dimension of ``X``. The minimum is ``n_clusters`` for ``exact``
         and ``ambient_noise``, and ``sum(tube_dim)`` for ``orthogonal_tubes``
@@ -358,7 +417,7 @@ def generate_multiscale_dataset(
     tube_dim:
         Dimension of each mutually orthogonal tube subspace. Can be an int (same for all)
         or an array of length n_clusters (different per cluster). For ``tight_frame_union``:
-        dimension of the subspace basis.
+        dimension of the subspace basis; must not exceed the number of vectors.
     eta:
         Maximum transverse-to-central norm ratio for each column (unused for
         ``tight_frame_union``).
@@ -368,23 +427,18 @@ def generate_multiscale_dataset(
     balanced_transverse:
         In the orthogonal-tube model, center transverse deviations so that the
         declared central direction is an exact covariance eigenvector.
+    basis:
+        Random or coordinate basis for orthogonal subspaces.
+    level_weights:
+        Custom energy/frame levels per cluster. If provided, must be an array of length
+        n_clusters with positive values. Overrides automatic generation via
+        ``high_energy``, ``condition_number``, and ``decay_rate``. Order must match
+        ``tube_dim`` and ``columns_per_cluster``.
     decay_rate:
         How energy levels decrease: ``linear`` (arithmetic), ``polynomial`` (1/t²,
-        default), or ``exponential`` (geometric).
+        default), or ``exponential`` (geometric). Ignored if ``level_weights`` is provided.
     seed:
         Random seed for reproducibility.
-    tube_dim:
-        Dimension of each mutually orthogonal tube subspace. For ``tight_frame_union``:
-        dimension of the subspace basis.
-    eta:
-        Maximum transverse-to-central norm ratio for each column (unused for
-        ``tight_frame_union``).
-    amplitude_spread:
-        Standard deviation of lognormal raw column magnitudes (unused for
-        ``tight_frame_union``).
-    balanced_transverse:
-        In the orthogonal-tube model, center transverse deviations so that the
-        declared central direction is an exact covariance eigenvector.
     """
     if model not in {"exact", "orthogonal_tubes", "ambient_noise", "tight_frame_union"}:
         raise ValueError(f"unknown model: {model}")
@@ -399,8 +453,9 @@ def generate_multiscale_dataset(
         tube_dim, n_clusters, "tube_dim"
     )
     
-    # Validate that tube_dim >= columns_per_cluster for each cluster
-    if np.any(tube_dim_array < columns_per_cluster_array):
+    if model == "tight_frame_union":
+        _validate_tight_frame_dimensions(columns_per_cluster_array, tube_dim_array)
+    elif np.any(tube_dim_array < columns_per_cluster_array):
         for i in range(n_clusters):
             if tube_dim_array[i] < columns_per_cluster_array[i]:
                 raise ValueError(
@@ -409,9 +464,22 @@ def generate_multiscale_dataset(
                 )
 
     rng = np.random.default_rng(seed)
-    energies = log_spaced_energies(
-        n_clusters, high_energy, condition_number, decay_rate=decay_rate
-    )
+    
+    # Use custom level_weights if provided, otherwise generate automatically
+    if level_weights is not None:
+        energies = np.asarray(level_weights, dtype=np.float64)
+        if energies.ndim != 1:
+            raise ValueError("level_weights must be 1-D")
+        if len(energies) != n_clusters:
+            raise ValueError(
+                f"level_weights has length {len(energies)} but n_clusters={n_clusters}"
+            )
+        if np.any(energies <= 0):
+            raise ValueError("All level_weights values must be positive")
+    else:
+        energies = log_spaced_energies(
+            n_clusters, high_energy, condition_number, decay_rate=decay_rate
+        )
     
     # For tight_frame_union, energies are frame levels; skip amplitude scaling
     if model != "tight_frame_union":
@@ -551,9 +619,10 @@ def generate_multiscale_dataset(
         "n_clusters": n_clusters,
         "columns_per_cluster": int(columns_per_cluster_array[0]) if np.all(columns_per_cluster_array == columns_per_cluster_array[0]) else "variable",
         "tube_dim": int(tube_dim_array[0]) if np.all(tube_dim_array == tube_dim_array[0]) else "variable",
-        "high_energy": high_energy,
-        "condition_number": condition_number,
-        "decay_rate": decay_rate,
+        "high_energy": high_energy if level_weights is None else None,
+        "condition_number": condition_number if level_weights is None else None,
+        "decay_rate": decay_rate if level_weights is None else None,
+        "level_weights": "custom" if level_weights is not None else None,
         "eta": eta if model not in {"exact", "tight_frame_union"} else 0.0,
         "amplitude_spread": amplitude_spread,
         "balanced_transverse": (
@@ -634,6 +703,17 @@ def ensure_synthetic_dataset(config, force=False, data_dir=DATA_DIR):
 
     output_path = Path(data_dir) / f"{name}.npz"
     if output_path.exists() and not force:
+        if kind == "multiscale" and config.get("model", "exact") == "tight_frame_union":
+            n_clusters = int(config.get("n_clusters", 64))
+            _validate_tight_frame_dimensions(
+                _normalize_per_cluster_param(
+                    config.get("columns_per_cluster", 8), n_clusters, "columns_per_cluster"
+                ),
+                _normalize_per_cluster_param(
+                    config.get("tube_dim", 3), n_clusters, "tube_dim"
+                ),
+            )
+            _validate_cached_tight_frame_dimensions(output_path)
         return output_path
 
     if kind == "multiscale":
@@ -641,18 +721,23 @@ def ensure_synthetic_dataset(config, force=False, data_dir=DATA_DIR):
         if model not in MULTISCALE_MODELS:
             raise ValueError(f"Unsupported multiscale model {model!r} in {name}")
         ambient_dim = config.get("ambient_dim")
+        level_weights = config.get("level_weights")
+        if level_weights is not None:
+            level_weights = np.asarray(level_weights, dtype=np.float64)
         dataset = generate_multiscale_dataset(
             model=model,
             n_clusters=int(config.get("n_clusters", 64)),
-            columns_per_cluster=int(config.get("columns_per_cluster", 8)),
+            columns_per_cluster=config.get("columns_per_cluster", 8),
             high_energy=float(config.get("high_energy", 1.0)),
             condition_number=float(config.get("condition_number", 1.0e4)),
             ambient_dim=None if ambient_dim is None else int(ambient_dim),
-            tube_dim=int(config.get("tube_dim", 3)),
+            tube_dim=config.get("tube_dim", 3),
             eta=float(config.get("eta", 0.03)),
             amplitude_spread=float(config.get("amplitude_spread", 0.8)),
             balanced_transverse=bool(config.get("balanced_transverse", True)),
             basis=str(config.get("basis", "random")),
+            level_weights=level_weights,
+            decay_rate=str(config.get("decay_rate", "polynomial")),
             seed=int(config.get("seed", 0)),
         )
         dataset.save(output_path)

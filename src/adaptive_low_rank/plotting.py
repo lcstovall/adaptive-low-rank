@@ -75,6 +75,7 @@ def plot_residuals(
     n_candidates=None,
     compute_optimal=False,
     logx=False,
+    show_error_bars=True,
 ):
     """
     Plot normalized residual curves.
@@ -99,6 +100,13 @@ def plot_residuals(
         Whether to compute and plot the optimal rank-k SVD residual curve.
         When enabled, ``name`` must be the dataset name understood by
         :func:`adaptive_low_rank.datasets.load_dataset`.
+
+    logx : bool, default=False
+        Whether to use logarithmic scale on the x-axis.
+
+    show_error_bars : bool, default=True
+        Whether to show error bars (shaded regions) representing one standard
+        deviation across repeated runs.
 
     """
 
@@ -180,7 +188,7 @@ def plot_residuals(
             label=label,
         )
 
-        if len(runs) > 1:
+        if show_error_bars and len(runs) > 1:
             std = residuals.std(axis=0)
 
             ax.fill_between(x, mean - std, mean + std, color=color, alpha=0.10)

@@ -1,0 +1,26 @@
+synthetic: true
+dataset: tight_frame_linear
+model: tight_frame_union
+n_clusters: 20
+columns_per_cluster: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30]
+tube_dim: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+ambient_dim: 200
+high_energy: 1.0
+condition_number: 1000
+decay_rate: linear
+seed: 0
+
+algorithms:
+  adaptive:
+    k: [30]
+    random_state: [0,1,2,3,4,5,6,7,8,9]
+  greedy:
+    k: [30]
+  random:
+    k: [30]
+    random_state: [0,1,2,3,4,5,6,7,8,9]
+  batch_max:
+    k: [30]
+    random_state: [0,1,2,3,4,5,6,7,8,9]
+    n_candidates: [5, 10, 15]
+    compute_alpha: true
