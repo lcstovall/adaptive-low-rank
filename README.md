@@ -145,7 +145,6 @@ adaptive-low-rank/
 ├── scripts/
 │   ├── run_all_experiments.py
 │   ├── run_experiment.py   # Main experiment runner
-│   ├── run_orthogonal_tubes_grids.py
 │   └── runtime_scaling.py
 │
 ├── src/
@@ -225,21 +224,7 @@ Synthetic datasets are generated automatically when an experiment runs and
 `data/<dataset>.npz` is missing. For decay-based datasets, set
 `synthetic: true` and provide `decay_type` (`exp` or `poly`) and
 `decay_param`. The optional `n`, `d`, and `random_state` fields default to
-`2000`, `2000`, and `0`. Model-based multiscale datasets use model-specific
-configuration instead; see `configs/orthogonal_tubes.yml`. Generated
-matrices are saved as `data/<dataset>.npz`.
-
-### Orthogonal-Tubes Parameter Grids
-
-`scripts/run_orthogonal_tubes_grids.py` runs two parameter grids using
-`configs/orthogonal_tubes.yml` as the base configuration: `eta` and
-`condition_number`, each varied against `columns_per_cluster`. It saves one
-residual figure per grid to `figures/`. The grid values are set at the top of
-the script. Datasets are generated in memory, so `data/` is not modified.
-
-```bash
-python scripts/run_orthogonal_tubes_grids.py
-```
+`2000`, `2000`, and `0`. Generated matrices are saved as `data/<dataset>.npz`.
 
 ---
 
