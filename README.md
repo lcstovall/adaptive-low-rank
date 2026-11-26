@@ -354,6 +354,11 @@ increasing size and saves `results/runtime_scaling/runtime_scaling.pkl`.
 CSV tables under `results/runtime_scaling/tables/`.
 
 Run a small validation sweep with `python scripts/runtime_scaling.py --smoke-test`.
+The default `--threads=1` is verified and recorded in `environment.json`.
+On Apple Accelerate, the benchmark uses its native per-thread single-threaded
+mode and restores the previous mode afterward; other thread counts are not
+supported there. For other BLAS backends, `threadpoolctl` must detect and
+verify the requested thread count or the benchmark stops.
 The runtime benchmark refuses to overwrite a nonempty output directory. Archive
 older results in `results/runtime_scaling/` before running the current benchmark;
 the notebook expects the current results schema.

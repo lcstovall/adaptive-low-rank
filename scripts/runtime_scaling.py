@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import ctypes
 import hashlib
 import inspect
 import json
@@ -17,6 +18,7 @@ import platform
 import subprocess
 import sys
 import time
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -178,7 +180,55 @@ def write_summary(path, sweep, varying):
             writer.writerow(row)
 
 
-def environment(args):
+@contextmanager
+def verified_blas_threads(threads):
+    blas_name = np.show_config(mode="dicts")["Build Dependencies"]["blas"]["name"]
+    accelerate = sys.platform == "darwin" and blas_name.lower() == "accelerate"
+    if accelerate and threads != 1:
+        raise ValueError("Apple Accelerate only supports verified --threads=1.")
+
+    with threadpool_limits(limits=threads, user_api="blas"):
+        pools = [pool for pool in threadpool_info() if pool["user_api"] == "blas"]
+        if any(pool["num_threads"] != threads for pool in pools):
+            raise RuntimeError("threadpoolctl could not verify the requested BLAS thread count.")
+        if not accelerate and not pools:
+            raise RuntimeError(f"No BLAS thread pool detected for NumPy backend {blas_name!r}.")
+
+        control = dict(
+            numpy_blas=blas_name, requested_threads=threads,
+            threadpoolctl_blas_pools=pools,
+            verification="threadpoolctl",
+        )
+        if not accelerate:
+            yield control
+            return
+
+        try:
+            library = ctypes.CDLL("/System/Library/Frameworks/Accelerate.framework/Accelerate")
+            get_mode = library.BLASGetThreading
+            set_mode = library.BLASSetThreading
+        except (OSError, AttributeError) as exc:
+            raise RuntimeError("Apple Accelerate's thread-control API is unavailable.") from exc
+        get_mode.argtypes = []
+        get_mode.restype = ctypes.c_uint
+        set_mode.argtypes = [ctypes.c_uint]
+        set_mode.restype = ctypes.c_int
+        previous_mode = get_mode()
+        if previous_mode not in (0, 1):
+            raise RuntimeError(f"Unknown Apple Accelerate threading mode: {previous_mode}.")
+        try:
+            if set_mode(1) != 0 or get_mode() != 1:
+                raise RuntimeError("Could not verify single-threaded Apple Accelerate.")
+            control.update(verification="BLASGetThreading", effective_mode="single-threaded")
+            yield control
+            if get_mode() != 1:
+                raise RuntimeError("Apple Accelerate threading mode changed during the benchmark.")
+        finally:
+            if set_mode(previous_mode) != 0 or get_mode() != previous_mode:
+                raise RuntimeError("Could not restore the Apple Accelerate threading mode.")
+
+
+def environment(args, thread_control):
     try:
         commit = subprocess.run(["git", "rev-parse", "HEAD"], check=True,
                                 capture_output=True, text=True).stdout.strip()
@@ -191,7 +241,8 @@ def environment(args):
         arguments={k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()},
         python=sys.version, numpy=np.__version__, platform=platform.platform(),
         machine=platform.machine(), processor=platform.processor(), cpu_count=os.cpu_count(),
-        threadpools=threadpool_info(), git_commit=commit, git_worktree_dirty=dirty,
+        threadpools=threadpool_info(), blas_thread_control=thread_control,
+        git_commit=commit, git_worktree_dirty=dirty,
         algorithm_source_sha256=hashlib.sha256(source).hexdigest(),
         reviewed_reference_commit=REFERENCE_COMMIT, std_ddof=0,
         timing_includes="residual copy, RNG setup, pivot selection/scoring, projection updates, pivot checks",
@@ -222,8 +273,8 @@ def run_benchmark(args):
         raise FileExistsError(f"{out} is not empty; choose a new --output-dir.")
     out.mkdir(parents=True, exist_ok=True)
     measured, records = {}, []
-    with threadpool_limits(limits=args.threads, user_api="blas"):
-        (out / "environment.json").write_text(json.dumps(environment(args), indent=2) + "\n")
+    with verified_blas_threads(args.threads) as thread_control:
+        (out / "environment.json").write_text(json.dumps(environment(args, thread_control), indent=2) + "\n")
         script_source = Path(__file__).read_text()
         (out / "runtime_scaling_used.py").write_text(script_source)
         for d, n in configs:
