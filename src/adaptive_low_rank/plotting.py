@@ -76,6 +76,7 @@ def plot_residuals(
     compute_optimal=False,
     logx=False,
     show_error_bars=True,
+    batch_max_n_candidates=None,
 ):
     """
     Plot normalized residual curves.
@@ -108,12 +109,21 @@ def plot_residuals(
         Whether to show error bars (shaded regions) representing one standard
         deviation across repeated runs.
 
+    batch_max_n_candidates : int, optional
+        Batch-Max n_candidates value to plot. If provided, overrides the
+        default behavior of plotting the first n_candidates value encountered.
+        Only affects Batch-Max runs.
+
     """
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if n_candidates is None:
+    if batch_max_n_candidates is not None:
+        # Use the explicitly specified batch_max n_candidates value
+        n_candidates = batch_max_n_candidates
+    elif n_candidates is None:
+        # Default to the first n_candidates value encountered for Batch-Max
         n_candidates = next(
             (
                 run["parameters"]["n_candidates"]
@@ -285,6 +295,7 @@ def plot_residual_grid(
     ylim=(1e-3, 2.0),
     font_size=15,
     param_labels=None,
+    batch_max_n_candidates=None,
 ):
     """
     Plot a grid of normalized residual curves from a two-parameter sweep.
@@ -320,6 +331,11 @@ def plot_residual_grid(
         Maps parameter names to display labels (mathtext allowed), used in the
         column titles and row labels. Missing names are shown as-is.
 
+    batch_max_n_candidates : int, optional
+        Batch-Max n_candidates value to plot. If provided, overrides the
+        default behavior of plotting the first n_candidates value encountered.
+        Only affects Batch-Max runs.
+
     Raises
     ------
     ValueError
@@ -329,7 +345,11 @@ def plot_residual_grid(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if n_candidates is None:
+    if batch_max_n_candidates is not None:
+        # Use the explicitly specified batch_max n_candidates value
+        n_candidates = batch_max_n_candidates
+    elif n_candidates is None:
+        # Default to the first n_candidates value encountered for Batch-Max
         n_candidates = next(
             (
                 run["parameters"]["n_candidates"]
