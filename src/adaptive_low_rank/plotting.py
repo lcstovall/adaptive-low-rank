@@ -692,7 +692,7 @@ def plot_runtime_scaling(
     plt.show()
 
 
-def runtime_table(results, fixed_d=None, fixed_n=None):
+def runtime_table(results, fixed_d=None, fixed_n=None, include_absolute=False):
     """Tabulate mean and std runtime for a fixed-d or fixed-n cross section.
 
     Parameters
@@ -706,12 +706,16 @@ def runtime_table(results, fixed_d=None, fixed_n=None):
     fixed_n : int, optional
         Fix the number of columns and tabulate runtime as ``d`` varies.
 
+    include_absolute : bool, default=False
+        Include absolute times in seconds alongside the relative runtimes.
+
     Returns
     -------
     mean_df, std_df : pandas.DataFrame
-        Runtime relative to Adaptive, averaged/std'd over repeats, indexed by
-        the varying dimension (``n`` or ``d``), with Batch-Max and Greedy
-        columns.
+        Mean and standard deviation over repeats, indexed by the varying
+        dimension (``n`` or ``d``). By default, columns contain the trial-wise
+        Batch-Max and Greedy ratios to Adaptive. With ``include_absolute``,
+        they also include absolute times in seconds.
     """
 
     if (fixed_d is None) == (fixed_n is None):
@@ -741,12 +745,25 @@ def runtime_table(results, fixed_d=None, fixed_n=None):
     adaptive_runtimes = runtimes[adaptive_index]
     relative_runtimes = runtimes / adaptive_runtimes[None, ...]
     relative_runtimes = relative_runtimes[keep_indices]
+    columns = keep_algorithms
+    table_runtimes = relative_runtimes
+    if include_absolute:
+        time_names = {
+            "Adaptive": "ARS time (s)",
+            "BatchMax": "BatchMax time (s)",
+            "Greedy": "Greedy time (s)",
+        }
+        time_algorithms = [name for name in time_names if name in algorithms]
+        time_indices = [algorithms.index(name) for name in time_algorithms]
+        table_runtimes = np.concatenate((runtimes[time_indices], relative_runtimes), axis=0)
+        columns = [time_names[name] for name in time_algorithms]
+        columns += [f"{name}/ARS" for name in keep_algorithms]
 
     mean_df = pd.DataFrame(
-        relative_runtimes.mean(axis=1).T, index=index, columns=keep_algorithms
+        table_runtimes.mean(axis=1).T, index=index, columns=columns
     )
     std_df = pd.DataFrame(
-        relative_runtimes.std(axis=1).T, index=index, columns=keep_algorithms
+        table_runtimes.std(axis=1).T, index=index, columns=columns
     )
 
     return mean_df, std_df

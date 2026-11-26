@@ -365,9 +365,10 @@ git switch --detach d0188b7
 python scripts/runtime_scaling.py --threads 1
 ```
 
-Run the plotting notebooks to regenerate the figures and runtime tables. Both
-experiment commands refuse to overwrite existing results; archive them first
-when rerunning. The runtime sweep can take hours.
+Switch back to the current branch and run the plotting notebooks to regenerate
+the figures and runtime tables. Both experiment commands refuse to overwrite
+existing results; archive them first when rerunning. The runtime sweep can
+take hours.
 
 The reported runs used Python 3.13.3, NumPy 2.5.2, SciPy 1.18.0, and
 scikit-learn 1.9.0 on macOS ARM64. The runtime sweep used verified
@@ -388,8 +389,9 @@ python scripts/runtime_scaling.py
 
 benchmarks Adaptive, Batch-Max, and Greedy on synthetic matrices of
 increasing size and saves `results/runtime_scaling/runtime_scaling.pkl`.
-`notebooks/runtime_tables.ipynb` turns it into mean and standard-deviation
-CSV tables under `results/runtime_scaling/tables/`.
+`notebooks/runtime_tables.ipynb` turns it into CSV and LaTeX tables with
+mean and standard deviation for absolute times and paired ratios to Adaptive,
+under `results/runtime_scaling/tables/`.
 
 Run a small validation sweep with `python scripts/runtime_scaling.py --smoke-test`.
 The default `--threads=1` is verified and recorded in `environment.json`.

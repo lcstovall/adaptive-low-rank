@@ -7,7 +7,10 @@ from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import numpy as np
+
 from scripts import runtime_scaling
+from adaptive_low_rank.plotting import runtime_table
 
 
 class RuntimeScalingPathTests(unittest.TestCase):
@@ -101,6 +104,42 @@ class RuntimeScalingThreadTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "could not verify"):
                 with runtime_scaling.verified_blas_threads(1):
                     self.fail("Wrong thread count was accepted")
+
+
+class RuntimeTableTests(unittest.TestCase):
+    def test_absolute_times_and_paired_ratios_for_both_sweeps(self):
+        results = {
+            "algorithms": ["Greedy", "Adaptive", "BatchMax"],
+            "dimensions": [10, 20],
+            "n_values": [100, 200],
+            "runtimes": np.array([
+                [[[5, 4], [15, 20]], [[6, 20], [12, 32]]],
+                [[[1, 2], [3, 4]], [[2, 4], [4, 8]]],
+                [[[4, 8], [6, 12]], [[4, 12], [12, 16]]],
+            ], dtype=float),
+        }
+        columns = [
+            "ARS time (s)", "BatchMax time (s)", "Greedy time (s)",
+            "BatchMax/ARS", "Greedy/ARS",
+        ]
+        mean, std = runtime_table(results, fixed_d=10, include_absolute=True)
+        self.assertEqual(list(mean.columns), columns)
+        self.assertEqual(list(mean.index), [100, 200])
+        np.testing.assert_allclose(mean.loc[100], [2, 5, 10, 3, 5])
+        np.testing.assert_allclose(std.loc[100], [1, 1, 5, 1, 0])
+        np.testing.assert_allclose(mean.loc[200], [3, 10, 12, 3.5, 3.5])
+        np.testing.assert_allclose(std.loc[200], [1, 2, 8, 0.5, 1.5])
+
+        mean, std = runtime_table(results, fixed_n=100, include_absolute=True)
+        self.assertEqual(list(mean.columns), columns)
+        self.assertEqual(list(mean.index), [10, 20])
+        np.testing.assert_allclose(mean.loc[20], [3, 8, 9, 2.5, 3])
+        np.testing.assert_allclose(std.loc[20], [1, 4, 3, 0.5, 0])
+
+        legacy_mean, legacy_std = runtime_table(results, fixed_d=10)
+        self.assertEqual(list(legacy_mean.columns), ["BatchMax", "Greedy"])
+        np.testing.assert_allclose(legacy_mean.loc[100], [3, 5])
+        np.testing.assert_allclose(legacy_std.loc[100], [1, 0])
 
 
 if __name__ == "__main__":
