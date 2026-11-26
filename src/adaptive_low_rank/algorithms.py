@@ -347,7 +347,11 @@ class Greedy(LowRankAlgorithm):
 
 
 class GreedyPP(LowRankAlgorithm):
-    """Sample candidate columns uniformly and select the best candidate."""
+    """Sample candidates uniformly and select the best residual reduction.
+
+    Candidates are sampled without replacement within each iteration. A
+    negligible-energy winner raises an error rather than triggering resampling.
+    """
 
     name = "greedy_plus_plus"
 

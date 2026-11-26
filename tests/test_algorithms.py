@@ -50,6 +50,30 @@ class ScaleInvarianceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "residual energy"):
             Greedy().select_columns(np.ones((2, 2)), k=2)
 
+    def test_greedy_pp_picks_best_uniformly_sampled_candidate(self):
+        matrix = np.array([[1e-5, 0.0, 0.0, 4.0], [0.0, 1.0, 1.0, 0.0]])
+        for seed in (0, 5):
+            with self.subTest(seed=seed):
+                candidates = np.random.RandomState(seed).choice(4, size=3, replace=False)
+                residuals = []
+                for idx in candidates:
+                    column = matrix[:, idx]
+                    projected = matrix - np.outer(column, column @ matrix) / (
+                        column @ column
+                    )
+                    residuals.append(np.linalg.norm(projected, ord="fro"))
+                idx, _ = GreedyPP().select_index(
+                    matrix, k=1, random_state=np.random.RandomState(seed), n_candidates=3
+                )
+                self.assertEqual(idx, candidates[np.argmin(residuals)])
+
+    def test_greedy_pp_fails_when_sampled_candidate_is_exhausted(self):
+        matrix = np.eye(2)
+        first = GreedyPP().select_columns(matrix, k=1, random_state=1, n_candidates=1)
+        np.testing.assert_array_equal(first.indices, [0])
+        with self.assertRaisesRegex(ValueError, "negligible residual energy"):
+            GreedyPP().select_columns(matrix, k=2, random_state=1, n_candidates=1)
+
     def test_random_samples_indices_independently_of_column_energy(self):
         matrix = np.array([[1.0, 1.0, 0.0], [0.0, 0.0, 0.0]])
         expected = np.random.RandomState(0).choice(3, size=3, replace=False)

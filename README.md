@@ -243,6 +243,11 @@ Algorithms other than Random raise an error if they select a column with
 negligible residual energy rather than recording a no-op selection. This can
 occur when the requested rank exceeds the matrix's numerical rank.
 
+Greedy++ samples candidates uniformly without replacement within each
+iteration, but can sample the same column again in later iterations. If the
+winning candidate has negligible residual energy, the run raises an error
+without resampling, even when usable columns remain outside the sampled batch.
+
 Random Selection samples uniformly without replacement from all column indices,
 including zero or dependent columns. Each residual is recomputed from the
 original matrix using a reorthogonalized basis of the selected columns. A
