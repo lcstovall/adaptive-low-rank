@@ -1,3 +1,4 @@
+import json
 import pickle
 import shutil
 from pathlib import Path
@@ -6,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 
-def save_results(results, config_path, output_dir):
+def save_results(results, config_path, output_dir, metadata=None):
     """Serialize benchmark results and write a tabular summary.
 
     Parameters
@@ -16,7 +17,9 @@ def save_results(results, config_path, output_dir):
     config_path : Path
         Path to the YAML configuration used for the experiment.
     output_dir : Path
-        Destination directory. It is created when necessary.
+        New destination directory. Existing directories are not overwritten.
+    metadata : dict, optional
+        Experiment provenance to write as ``metadata.json``.
 
     Notes
     -----
@@ -26,12 +29,17 @@ def save_results(results, config_path, output_dir):
     output_dir = Path(output_dir)
     config_path = Path(config_path)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=False)
 
     with open(output_dir / "results.pkl", "wb") as f:
         pickle.dump(results, f)
 
     shutil.copy2(config_path, output_dir / "config.yml")
+
+    if metadata is not None:
+        with open(output_dir / "metadata.json", "w") as f:
+            json.dump(metadata, f, indent=2)
+            f.write("\n")
 
     save_gains = any(
         hasattr(run["result"], "gains_bm")

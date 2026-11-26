@@ -61,6 +61,13 @@ class LowRankAlgorithm(ABC):
         """
 
         R = self._as_matrix(X.copy())
+        if R.ndim != 2 or not np.isfinite(R).all():
+            raise ValueError("X must be a finite two-dimensional matrix.")
+        if R.shape[1] == 0:
+            raise ValueError("X must contain at least one column.")
+        pivot_tolerance = (
+            np.finfo(float).eps * max(R.shape) * np.max(np.linalg.norm(R, axis=0))
+        )
 
         indices = np.full(k, -1, dtype=int)
 
@@ -86,6 +93,11 @@ class LowRankAlgorithm(ABC):
 
             idx, gains = self.select_index(R, k, rng, n_candidates, V, compute_alpha)
 
+            if np.linalg.norm(R[:, idx]) <= pivot_tolerance:
+                raise ValueError(
+                    "Selected column has negligible residual energy; "
+                    "the requested rank may exceed the numerical rank."
+                )
             indices[c] = idx
 
             if gains is None:
@@ -165,18 +177,17 @@ class LowRankAlgorithm(ABC):
         tuple[float, float] or None
             Batch-Max and adaptive-sampling gains, respectively.
         """
-        C = R @ R.T
-        e_p = np.sum(np.diag(C @ C)) / np.sum(np.diag(C))
         col_norms_sq = np.linalg.norm(R, axis=0) ** 2
 
-        if np.isclose(col_norms_sq.sum(), 0.0):
+        if col_norms_sq.sum() == 0:
             return None, None
 
+        C = R @ R.T
+        e_p = np.sum(np.diag(C @ C)) / np.sum(np.diag(C))
         p = col_norms_sq / np.sum(col_norms_sq)
         g = (R * (C @ R)).sum(axis=0)
 
-        g = np.divide(g, col_norms_sq, out=np.zeros_like(g), where=col_norms_sq > 1e-16)
-        g[col_norms_sq < 1e-16] = 0.0
+        g = np.divide(g, col_norms_sq, out=np.zeros_like(g), where=col_norms_sq > 0)
 
         ordering = np.argsort(g)
         g = g[ordering]
@@ -205,8 +216,8 @@ class LowRankAlgorithm(ABC):
 
         norm_sq = float(np.dot(center_column, center_column))
 
-        if np.isclose(norm_sq, 0.0):
-            return R
+        if not np.isfinite(norm_sq) or norm_sq == 0:
+            raise ValueError("Selected column has zero or non-finite residual energy.")
 
         projection = np.outer(center_column, center_column @ R) / norm_sq
 
@@ -235,8 +246,8 @@ class Adaptive(LowRankAlgorithm):
 
         cumulative = np.cumsum(column_norms_sq)
 
-        if cumulative.size == 0 or np.isclose(cumulative[-1], 0.0):
-            return 0, None
+        if cumulative.size == 0 or cumulative[-1] == 0:
+            raise ValueError("No column has nonzero residual energy.")
 
         # Sample columns in proportion to their squared residual norms.
         rand_val = random_state.uniform() * cumulative[-1]
@@ -272,8 +283,8 @@ class BatchMax(LowRankAlgorithm):
 
         cumulative = np.cumsum(column_norms_sq)
 
-        if cumulative.size == 0 or np.isclose(cumulative[-1], 0.0):
-            return 0, None
+        if cumulative.size == 0 or cumulative[-1] == 0:
+            raise ValueError("No column has nonzero residual energy.")
 
         rand_vals = random_state.uniform(size=n_candidates) * cumulative[-1]
 
@@ -291,7 +302,7 @@ class BatchMax(LowRankAlgorithm):
 
         scores = np.zeros_like(numerators)
 
-        mask = ~np.isclose(denominators, 0.0)
+        mask = denominators > 0
 
         scores[mask] = numerators[mask] / denominators[mask]
 
@@ -328,7 +339,7 @@ class Greedy(LowRankAlgorithm):
 
         scores = np.zeros_like(numerators)
 
-        mask = ~np.isclose(denominators, 0.0)
+        mask = denominators > 0
 
         scores[mask] = numerators[mask] / denominators[mask]
 
@@ -365,7 +376,7 @@ class GreedyPP(LowRankAlgorithm):
 
         scores = np.zeros_like(numerators)
 
-        mask = ~np.isclose(denominators, 0.0)
+        mask = denominators > 0
 
         scores[mask] = numerators[mask] / denominators[mask]
 
@@ -396,6 +407,6 @@ class Random(LowRankAlgorithm):
         candidates = np.flatnonzero(column_norms > tol)
 
         if len(candidates) == 0:
-            return 0, None
+            raise ValueError("No column has nonzero residual energy.")
 
         return (int(random_state.choice(candidates)), None)

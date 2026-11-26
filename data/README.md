@@ -1,66 +1,150 @@
 ## Datasets
 
-The experiment configurations use the dataset identifiers below. Each loader
-returns a NumPy matrix. `mnist`, `cifar10`, and `yearprediction` put features
-in rows and samples in columns. `coil20` returns one flattened image per row.
-The other loaders retain the orientation of their source or generated matrix.
+Experiment configurations identify datasets by name. Dataset paths below are
+relative to the repository root; run the commands from that directory.
 
-- `interactions` loads the `B` matrix from the MATLAB file.
-  - Local input: `data/interactions.mat`
-- `mnist` fetches `mnist_784` from OpenML with scikit-learn and transposes
-  the data. The data may be cached locally by scikit-learn.
-- `cifar10` loads the local CIFAR-10 feature archive and transposes the data.
-  - Local input: `data/cifar10_simclr.npz`
-- `coil20` reads every PNG in sorted order, flattens each image, and returns
-  one image per row.
-  - Local input: `data/coil-20-proc/`
-- `yearprediction` reads the comma-separated file, removes the first column
-  (the target), and transposes the feature matrix.
-  - Local input: `data/YearPredictionMSD.txt`
-- Any config with `synthetic: true` (e.g. `poly`) generates the matrix `X`
-  from the config if missing, then loads it from a compressed NumPy archive.
-  - Local input: `data/<identifier>.npz`
+| Identifier | Source | Required input |
+| --- | --- | --- |
+| `interactions` | Included in this repository | `data/interactions.mat` |
+| `mnist` | OpenML, downloaded automatically | scikit-learn cache |
+| `cifar10` | GraphLearning's CIFAR-10 SimCLR features | `data/cifar10_simclr.npz` |
+| `coil20` | Columbia's processed COIL-20 images | `data/coil-20-proc/*.png` |
+| `yearprediction` | UCI YearPredictionMSD | `data/YearPredictionMSD.txt` |
+| Synthetic configurations (e.g. `poly`) | Generated automatically | `data/<identifier>.npz` |
 
-Only `data/interactions.mat` is tracked as a dataset input. The other local
-inputs above are not included in a clean clone.
+Only `interactions.mat` is tracked as a dataset input. Install the project
+dependencies as described in the [main README](../README.md) before running
+experiments. Dataset rights are separate from the repository's software
+license. Check each source's terms and attribution requirements before use or
+redistribution; a download link does not itself establish permission to
+redistribute.
 
-### Data availability
+### Download and verification
 
-The following dataset assets are tracked in Git:
+The SHA-256 values below were calculated from the linked downloads; they are
+reference hashes, not publisher-signed checksums. Verify them before using or
+extracting the files. A mismatch may indicate a changed or incomplete download:
+check the source before proceeding. The examples use `curl`, `shasum`, and
+`unzip`. They assume the destination files and directories do not already
+exist; preserve any existing data before running them.
 
-- `interactions.mat`
+#### Interactions
 
-These loader-required inputs are not tracked and must be obtained or created
-separately before running the corresponding experiments:
+`data/interactions.mat` is included in a clean clone. The loader reads its
+2,500-by-2,500 double-precision `B` matrix; no download is needed. Its
+original source, construction method, citation, and redistribution terms
+are not documented in this repository. Establish these before publishing or
+redistributing the file.
 
-- `data/cifar10_simclr.npz` for `cifar10`
-- `data/coil-20-proc/` containing the COIL-20 image files for `coil20`
-- `data/YearPredictionMSD.txt` for `yearprediction`
+#### MNIST
 
-The `mnist` loader fetches `mnist_784` from
-[OpenML](https://www.openml.org/d/554), so its first run may require network
-access. Synthetic datasets are generated from their experiment
-configurations when needed; their `.npz` archives are not committed.
+The loader fetches [`mnist_784` from OpenML](https://www.openml.org/d/554)
+through scikit-learn on first use and may cache it locally. Network access may
+be required. The loader transposes the matrix to put features in rows and
+samples in columns; no separate archive checksum is specified here. The loader
+does not pin an OpenML version, so record the resolved version for published
+results.
 
-Keep the filenames and directory layout shown above for local inputs.
-Follow the respective terms and attribution requirements when obtaining
-external datasets:
+**Attribution:** Yann LeCun, Corinna Cortes, and Christopher J. C. Burges,
+*The MNIST Database of Handwritten Digits*; the linked
+[OpenML dataset 554](https://www.openml.org/d/554) is version 1.
+[OpenML's metadata](https://www.openml.org/api/v1/json/data/554) labels its
+license "Public" without identifying a specific license. Check the original
+dataset's terms before reuse or redistribution.
 
-- [COIL-20](http://www.cs.columbia.edu/CAVE/software/softlib/coil-20.php)
-- [YearPredictionMSD](https://archive.ics.uci.edu/dataset/203/yearpredictionmsd)
-- [MNIST on OpenML](https://www.openml.org/d/554)
-- [CIFAR-10](https://www.cs.toronto.edu/~kriz/cifar.html)
+#### CIFAR-10 SimCLR features
+
+The loader requires the precomputed SimCLR feature archive distributed by
+[GraphLearning](https://jwcalder.github.io/GraphLearning/datasets.html), not
+the raw [CIFAR-10](https://www.cs.toronto.edu/~kriz/cifar.html) download.
+Download the archive and verify it:
+
+```bash
+curl -fL -o data/cifar10_simclr.npz \
+  https://www-users.cse.umn.edu/~jwcalder/Data/cifar10_simclr.npz &&
+  printf '%s  %s\n' \
+    07b3008bae353e9f0c14d9f1aaef9c0fd870ab248d4ac6f1bb75768c8ef16961 \
+    data/cifar10_simclr.npz | shasum -a 256 -c
+```
+
+Alternatively, GraphLearning's `datasets.load("cifar10", metric="simclr")`
+downloads the feature archive and labels into its `data` directory relative
+to the current working directory. GraphLearning is not a project dependency;
+the labels are not needed by this project's loader. The loader reads the
+archive's `data` array and transposes it.
+
+**Attribution:** The CIFAR-10 source requests a citation to Alex Krizhevsky,
+[*Learning Multiple Layers of Features from Tiny Images*](https://www.cs.toronto.edu/~kriz/learning-features-2009-TR.pdf),
+2009. If using GraphLearning, also cite Jeff Calder,
+[*GraphLearning Python Package*](https://doi.org/10.5281/zenodo.5850940),
+2022. The rights and detailed preprocessing provenance of this specific
+feature archive have not been established here; confirm them with its
+distributor before redistribution. GraphLearning's software license alone
+does not establish the archive's terms.
+
+#### COIL-20
+
+Download the [processed COIL-20 archive](https://www.cs.columbia.edu/CAVE/software/softlib/coil-20.php),
+verify it, and extract it under `data/`:
+
+```bash
+curl -fL -o data/coil-20-proc.zip \
+  https://www.cs.columbia.edu/CAVE/databases/SLAM_coil-20_coil-100/coil-20/coil-20-proc.zip &&
+  printf '%s  %s\n' \
+    517c5594820eb40066ba0ff6842e7f09392bf7fde849bf9cb9c28445b0f29e88 \
+    data/coil-20-proc.zip | shasum -a 256 -c &&
+  unzip data/coil-20-proc.zip -d data
+```
+
+The PNG files should be directly inside `data/coil-20-proc/`. The loader reads
+them in sorted order and returns one flattened image per row. The experiment
+selects columns of this matrix, so COIL-20 selections are pixel positions,
+not images.
+
+**Attribution:** S. A. Nene, S. K. Nayar, and H. Murase, *Columbia Object
+Image Library (COIL-20)*, Technical Report CUCS-005-96, February 1996. The
+linked dataset page does not specify a dataset license. Contact the
+maintainers listed there for clarification before redistribution or other
+uses requiring permission.
+
+#### YearPredictionMSD
+
+Download the [UCI YearPredictionMSD archive](https://archive.ics.uci.edu/dataset/203/yearpredictionmsd),
+verify it, and extract it under `data/`:
+
+```bash
+curl -fL -o data/yearpredictionmsd.zip \
+  https://archive.ics.uci.edu/static/public/203/yearpredictionmsd.zip &&
+  printf '%s  %s\n' \
+    06f801af323bb7798e800583acce4ea1ed2697ac12c23f4424aea0a7a3d09e11 \
+    data/yearpredictionmsd.zip | shasum -a 256 -c &&
+  unzip data/yearpredictionmsd.zip -d data
+```
+
+The resulting file must be `data/YearPredictionMSD.txt`. The loader removes
+the first column (the target) and transposes the remaining feature matrix.
+
+**Attribution and license:** T. Bertin-Mahieux, *Year Prediction MSD*,
+UCI Machine Learning Repository, 2011,
+[doi:10.24432/C50K61](https://doi.org/10.24432/C50K61). UCI lists the dataset
+under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); provide
+appropriate credit, link the license, and indicate changes when required.
+Here, the target column is removed and the features are transposed in memory.
+
+### Synthetic datasets
+
+Configurations with `synthetic: true` generate their matrix on first use and
+save it as `data/<identifier>.npz`. Generation parameters, including the seed,
+come from the corresponding YAML configuration. A cache with missing or
+mismatched generation metadata raises an error, including archives created
+before metadata was recorded. To regenerate a dataset after changing its
+configuration, delete its archive or call
+`ensure_synthetic_dataset(config, force=True)`. See the
+[main README](../README.md#generating-synthetic-datasets) for details.
 
 ### Reproducibility notes
 
-- Synthetic matrices are generated from the matching YAML configuration using
-  polynomial or exponential singular-value decay and normalized to unit
-  Frobenius norm.
-- The loader removes the YearPredictionMSD target column before returning the
-  feature matrix. It does not normalize the real-valued datasets.
-
-### Generating synthetic datasets
-
-The synthetic archives are described by the matching files in `configs/` and
-are generated automatically the first time an experiment using them runs. To
-regenerate one, delete its `.npz` file.
+- The real-valued datasets are not normalized by the loader.
+- Synthetic decay matrices have polynomial or exponential singular-value
+  decay and are normalized to unit Frobenius norm. Other synthetic models use
+  the parameters of their respective configurations.

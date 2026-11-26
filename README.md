@@ -71,7 +71,6 @@ notebook reads the runtime-scaling results and writes CSV tables under
 | --- | --- |
 | `plotting_residuals.ipynb` | Normalized residual curves |
 | `plotting_alphas.ipynb` | Batch-Max alpha trajectories |
-| `tight_frames_comparison.ipynb` | Tight-frame residual and alpha comparisons |
 | `plotting_theory.ipynb` | Theory vs. empirical residual curves |
 | `runtime_tables.ipynb` | Runtime-scaling tables |
 
@@ -87,14 +86,17 @@ in `adaptive_low_rank.theory`, and creates the figures with
 
 Synthetic datasets are built automatically the first time an experiment needs
 them: `scripts/run_experiment.py` passes the experiment YAML to
-`load_dataset`, which generates `data/<dataset>.npz` if it is missing before
-the algorithms run. A config is synthetic only if it sets `synthetic: true`;
+`load_dataset`, which generates `data/<dataset>.npz` if it is missing. Cached
+archives are checked against the generation parameters; an archive with
+missing or mismatched metadata raises an error instead of being reused. A
+config is synthetic only if it sets `synthetic: true`;
 `dataset:` is the name of the generated file, and neither it nor the YAML
 filename affects generation. `dataset_type` is `decay` (default) or
 `multiscale`, which is the default when `model` is set.
 
-To regenerate a dataset after changing its config, delete its `.npz` file or
-call `ensure_synthetic_dataset(config, force=True)`.
+To regenerate a dataset after changing its config, or to replace an older
+archive without generation metadata, delete its `.npz` file or call
+`ensure_synthetic_dataset(config, force=True)`.
 
 For example, `configs/poly.yml` produces `data/poly.npz`.
 
@@ -110,7 +112,7 @@ subspace is populated by a tight frame. This creates structured datasets with
 known energy hierarchies perfect for testing column selection algorithms.
 
 ```python
-from src.adaptive_low_rank.synthetic import generate_multiscale_dataset
+from adaptive_low_rank.synthetic import generate_multiscale_dataset
 
 ds = generate_multiscale_dataset(
     model='tight_frame_union',
@@ -237,6 +239,9 @@ Each experiment consists of
 - algorithm-specific parameter grids
 
 Parameters that are lists are expanded into every combination automatically.
+An algorithm raises an error if it selects a column with negligible residual
+energy rather than recording a no-op selection. This can occur when the
+requested rank exceeds the matrix's numerical rank.
 
 Algorithm names used as keys under `algorithms:`:
 
@@ -296,7 +301,17 @@ Running an experiment saves these files under `results/<dataset>/`:
 results.pkl
 summary.csv
 config.yml
+metadata.json
 ```
+
+The runner refuses to overwrite an existing output directory. Move or archive
+the previous directory before rerunning. `metadata.json` records the matrix
+shape, dtype, and SHA-256 (over a JSON shape/dtype header and C-order matrix
+bytes), Python and dependency versions, platform, Git revision, and worktree
+dirty status. Archive the exact source changes separately when the worktree is
+dirty. Preserve the output directory and input dataset alongside any published
+results.
+`results.pkl` uses Python pickle; only load files from trusted sources.
 
 `summary.csv` contains one row per run with the algorithm, its parameters,
 `final_residual`, and `runtime` when recorded.
@@ -320,10 +335,15 @@ algorithm and run parameters, plus:
 python scripts/runtime_scaling.py
 ```
 
-benchmarks Adaptive, Batch-Max, Greedy, and Greedy++ on synthetic matrices of
+benchmarks Adaptive, Batch-Max, and Greedy on synthetic matrices of
 increasing size and saves `results/runtime_scaling/runtime_scaling.pkl`.
 `notebooks/runtime_tables.ipynb` turns it into mean and standard-deviation
 CSV tables under `results/runtime_scaling/tables/`.
+
+Run a small validation sweep with `python scripts/runtime_scaling.py --smoke-test`.
+The runtime benchmark refuses to overwrite a nonempty output directory. Archive
+older results in `results/runtime_scaling/` before running the current benchmark;
+the notebook expects the current results schema.
 
 ---
 
@@ -380,6 +400,14 @@ Install the core package dependencies with
 ```bash
 pip install -e .
 ```
+
+Run the regression tests with:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Continuous integration runs these tests on Python 3.10 through 3.14.
 
 ---
 

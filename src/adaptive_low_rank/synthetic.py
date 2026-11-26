@@ -84,7 +84,7 @@ class MultiscaleDataset:
     metadata: dict[str, Any]
     tube_bases: list[Array] | Array | None = None
 
-    def save(self, path: str | Path) -> Path:
+    def save(self, path: str | Path, generation_config: str | None = None) -> Path:
         """Save the dataset and its construction metadata to a compressed NPZ."""
         destination = Path(path)
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -96,6 +96,8 @@ class MultiscaleDataset:
             "model": np.asarray(self.model),
             "metadata_json": np.asarray(json.dumps(self.metadata, sort_keys=True)),
         }
+        if generation_config is not None:
+            payload["generation_config_json"] = np.asarray(generation_config)
         if self.amplitudes is not None:
             payload["amplitudes"] = self.amplitudes
         if isinstance(self.tube_bases, list):
@@ -681,6 +683,39 @@ def synthetic_dataset_path(config, data_dir=DATA_DIR):
     return None if kind is None else Path(data_dir) / f"{name}.npz"
 
 
+def _generation_parameters(kind, config):
+    if kind == "decay":
+        return {
+            "decay_type": str(config["decay_type"]).lower(),
+            "decay_param": float(config["decay_param"]),
+            "n": int(config.get("n", 2000)),
+            "d": int(config.get("d", 2000)),
+            "random_state": config.get("random_state", 0),
+        }
+
+    level_weights = config.get("level_weights")
+    ambient_dim = config.get("ambient_dim")
+    return {
+        "model": str(config.get("model", "exact")),
+        "n_clusters": int(config.get("n_clusters", 64)),
+        "columns_per_cluster": np.asarray(config.get("columns_per_cluster", 8)).tolist(),
+        "high_energy": float(config.get("high_energy", 1.0)),
+        "condition_number": float(config.get("condition_number", 1.0e4)),
+        "ambient_dim": None if ambient_dim is None else int(ambient_dim),
+        "tube_dim": np.asarray(config.get("tube_dim", 3)).tolist(),
+        "eta": float(config.get("eta", 0.03)),
+        "amplitude_spread": float(config.get("amplitude_spread", 0.8)),
+        "balanced_transverse": bool(config.get("balanced_transverse", True)),
+        "basis": str(config.get("basis", "random")),
+        "level_weights": (
+            None if level_weights is None
+            else np.asarray(level_weights, dtype=np.float64).tolist()
+        ),
+        "decay_rate": str(config.get("decay_rate", "polynomial")),
+        "seed": int(config.get("seed", 0)),
+    }
+
+
 def ensure_synthetic_dataset(config, force=False, data_dir=DATA_DIR):
     """Generate the dataset described by ``config`` unless it already exists.
 
@@ -701,8 +736,24 @@ def ensure_synthetic_dataset(config, force=False, data_dir=DATA_DIR):
     if kind is None:
         return None
 
+    parameters = _generation_parameters(kind, config)
+    generation_config = json.dumps(
+        {"kind": kind, "parameters": parameters},
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
     output_path = Path(data_dir) / f"{name}.npz"
     if output_path.exists() and not force:
+        with np.load(output_path, allow_pickle=False) as archive:
+            if (
+                "generation_config_json" not in archive
+                or archive["generation_config_json"].item() != generation_config
+            ):
+                raise ValueError(
+                    f"Cached dataset {output_path} has missing or mismatched generation "
+                    "metadata; regenerate it with force=True or remove the archive."
+                )
         if kind == "multiscale" and config.get("model", "exact") == "tight_frame_union":
             n_clusters = int(config.get("n_clusters", 64))
             _validate_tight_frame_dimensions(
@@ -717,43 +768,20 @@ def ensure_synthetic_dataset(config, force=False, data_dir=DATA_DIR):
         return output_path
 
     if kind == "multiscale":
-        model = str(config.get("model", "exact"))
+        model = parameters["model"]
         if model not in MULTISCALE_MODELS:
             raise ValueError(f"Unsupported multiscale model {model!r} in {name}")
-        ambient_dim = config.get("ambient_dim")
-        level_weights = config.get("level_weights")
-        if level_weights is not None:
-            level_weights = np.asarray(level_weights, dtype=np.float64)
-        dataset = generate_multiscale_dataset(
-            model=model,
-            n_clusters=int(config.get("n_clusters", 64)),
-            columns_per_cluster=config.get("columns_per_cluster", 8),
-            high_energy=float(config.get("high_energy", 1.0)),
-            condition_number=float(config.get("condition_number", 1.0e4)),
-            ambient_dim=None if ambient_dim is None else int(ambient_dim),
-            tube_dim=config.get("tube_dim", 3),
-            eta=float(config.get("eta", 0.03)),
-            amplitude_spread=float(config.get("amplitude_spread", 0.8)),
-            balanced_transverse=bool(config.get("balanced_transverse", True)),
-            basis=str(config.get("basis", "random")),
-            level_weights=level_weights,
-            decay_rate=str(config.get("decay_rate", "polynomial")),
-            seed=int(config.get("seed", 0)),
-        )
-        dataset.save(output_path)
+        dataset = generate_multiscale_dataset(**parameters)
+        dataset.save(output_path, generation_config=generation_config)
         return output_path
 
-    n = int(config.get("n", 2000))
-    d = int(config.get("d", 2000))
+    n = parameters["n"]
+    d = parameters["d"]
     if n < 1 or d < 1:
         raise ValueError(f"n and d must be positive in {name}")
-    X = generate_synthetic_dataset(
-        decay_type=str(config["decay_type"]).lower(),
-        decay_param=float(config["decay_param"]),
-        n=n,
-        d=d,
-        random_state=config.get("random_state", 0),
-    )
+    X = generate_synthetic_dataset(**parameters)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(output_path, X=X)
+    np.savez_compressed(
+        output_path, X=X, generation_config_json=np.asarray(generation_config)
+    )
     return output_path

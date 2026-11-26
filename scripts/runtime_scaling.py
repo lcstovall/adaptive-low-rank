@@ -99,9 +99,7 @@ def time_selection(algorithm, X, k, batch_size, random_state,
             break
         column = R[:, idx]
         energy = float(column @ column)
-        # Match the package kernel's absolute guard as well as a scale-aware
-        # guard. Otherwise the existing _project_out may silently skip work.
-        if (not np.isfinite(energy) or np.isclose(energy, 0.0)
+        if (not np.isfinite(energy) or energy == 0
                 or energy <= pivot_rtol * mean_column_energy):
             reason = "selected residual direction is below projection tolerance"
             break
@@ -207,7 +205,7 @@ def run_benchmark(args):
         args.fixed_d, args.fixed_n, args.rank, args.k, args.repeats = 64, 80, 30, 10, 2
     if args.output_dir is None:
         args.output_dir = Path("results/runtime_scaling_smoke" if args.smoke_test
-                               else "results/runtime_scaling_v2")
+                               else "results/runtime_scaling")
     if min(args.repeats, args.threads, args.batch_size) < 1 or not 0 < args.k < args.rank:
         raise ValueError("Require repeats/threads/batch-size >= 1 and 0 < k < rank.")
     if not 0 <= args.seed < 2**32 or not np.isfinite(args.pivot_rtol) or args.pivot_rtol <= 0:
