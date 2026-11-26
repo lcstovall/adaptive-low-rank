@@ -239,7 +239,7 @@ def plot_residuals(
     ax.yaxis.set_minor_locator(FixedLocator(labeled_minor_ticks))
 
     ax.set_xlabel(r"Number of Selected Columns ($k$)", fontsize=FONT_SIZE)
-    ax.set_ylabel(r"Normalized Residual $(\|R_k\|_F / \|R_0\|_F)$", fontsize=FONT_SIZE)
+    ax.set_ylabel(r"Normalized Residual $(\|\mathbf{R}_k\|_F / \|\mathbf{R}_0\|_F)$", fontsize=FONT_SIZE)
     ax.tick_params(axis="both", which="both", labelsize=FONT_SIZE)
 
     ax.grid(True, which="both", axis="y")
@@ -453,7 +453,7 @@ def plot_residual_grid(
     pad_y = pad / fig.get_figheight()
 
     fig.supylabel(
-        r"Normalized Residual $(\|R_k\|_F / \|R_0\|_F)$",
+        r"Normalized Residual $(\|\mathbf{R}_k\|_F / \|\mathbf{R}_0\|_F)$",
         fontsize=font_size,
         x=left - pad_x,
         ha="right",
@@ -578,7 +578,7 @@ def plot_theory_curves(
     ax.yaxis.set_minor_locator(FixedLocator(labeled_minor_ticks))
 
     ax.set_xlabel(r"Number of Selected Columns ($k$)", fontsize=FONT_SIZE)
-    ax.set_ylabel(r"Normalized Residual $(\|R_k\|_F / \|R_0\|_F)$", fontsize=FONT_SIZE)
+    ax.set_ylabel(r"Normalized Residual $(\|\mathbf{R}_k\|_F / \|\mathbf{R}_0\|_F)$", fontsize=FONT_SIZE)
     ax.tick_params(axis="both", which="both", labelsize=FONT_SIZE)
 
     ax.grid(True, which="both", axis="y")
