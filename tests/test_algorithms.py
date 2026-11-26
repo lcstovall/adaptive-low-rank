@@ -39,7 +39,7 @@ class ScaleInvarianceTests(unittest.TestCase):
         self.assertGreater(result.gains_as[0], 0)
 
     def test_zero_matrix_fails_explicitly(self):
-        for algorithm in (Adaptive, BatchMax, Greedy, GreedyPP, Random):
+        for algorithm in (Adaptive, BatchMax, Greedy, GreedyPP):
             with self.subTest(algorithm=algorithm.__name__):
                 with self.assertRaises(ValueError):
                     algorithm().select_columns(
@@ -49,6 +49,39 @@ class ScaleInvarianceTests(unittest.TestCase):
     def test_exhausted_rank_fails_explicitly(self):
         with self.assertRaisesRegex(ValueError, "residual energy"):
             Greedy().select_columns(np.ones((2, 2)), k=2)
+
+    def test_random_samples_indices_independently_of_column_energy(self):
+        matrix = np.array([[1.0, 1.0, 0.0], [0.0, 0.0, 0.0]])
+        expected = np.random.RandomState(0).choice(3, size=3, replace=False)
+        result = Random().select_columns(matrix, k=3, random_state=0)
+        zero_result = Random().select_columns(np.zeros_like(matrix), k=3, random_state=0)
+        np.testing.assert_array_equal(result.indices, expected)
+        np.testing.assert_array_equal(zero_result.indices, expected)
+        np.testing.assert_allclose(zero_result.residuals, 0.0)
+        np.testing.assert_allclose(result.residuals, [np.sqrt(2), 0.0, 0.0], atol=1e-15)
+
+    def test_random_rejects_more_selections_than_columns(self):
+        with self.assertRaisesRegex(ValueError, "number of columns"):
+            Random().select_columns(np.eye(2), k=3, random_state=0)
+
+    def test_random_residuals_match_least_squares(self):
+        matrix = np.array([[1.0, 0.0, 1.0], [0.0, 2.0, 1.0], [1.0, 1.0, 1.0]])
+        result = Random().select_columns(matrix, k=3, random_state=0)
+        for count, residual in enumerate(result.residuals, 1):
+            selected = matrix[:, result.indices[:count]]
+            coefficients = np.linalg.lstsq(selected, matrix, rcond=None)[0]
+            expected = np.linalg.norm(matrix - selected @ coefficients, ord="fro")
+            self.assertAlmostEqual(residual, expected, places=12)
+
+    def test_random_retains_near_dependent_selections(self):
+        matrix = np.array([[0.0, 1.0, 1.0], [1.0, 1e-17, 0.0]])
+        for scale in (1.0, 1e-5):
+            with self.subTest(scale=scale):
+                result = Random().select_columns(scale * matrix, k=3, random_state=0)
+                np.testing.assert_array_equal(result.indices, [2, 1, 0])
+                np.testing.assert_allclose(
+                    result.residuals, scale * np.array([1.0, 1.0, 0.0]), atol=1e-20
+                )
 
 
 if __name__ == "__main__":

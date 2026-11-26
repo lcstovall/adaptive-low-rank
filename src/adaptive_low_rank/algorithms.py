@@ -386,9 +386,62 @@ class GreedyPP(LowRankAlgorithm):
 
 
 class Random(LowRankAlgorithm):
-    """Select a nonzero-residual column uniformly at random."""
+    """Select column indices uniformly without replacement."""
 
     name = "random_selection"
+
+    def select_columns(
+        self,
+        X: np.ndarray,
+        k: int,
+        random_state: np.random.RandomState | int | None = None,
+        n_candidates: int | None = None,
+        V: np.ndarray | None = None,
+        compute_alpha: bool = False,
+        compute_runtime: bool = False,
+    ) -> AlgorithmResult:
+        """Sample indices without replacement and project onto their numerical span."""
+        X = self._as_matrix(X.copy())
+        if X.ndim != 2 or not np.isfinite(X).all():
+            raise ValueError("X must be a finite two-dimensional matrix.")
+        if X.shape[1] == 0:
+            raise ValueError("X must contain at least one column.")
+        if k < 0 or k > X.shape[1]:
+            raise ValueError("k must be between zero and the number of columns.")
+
+        start = time.perf_counter() if compute_runtime else None
+        if random_state is None:
+            rng = np.random.RandomState()
+        elif isinstance(random_state, (int, np.integer)):
+            rng = np.random.RandomState(random_state)
+        else:
+            rng = random_state
+
+        indices = rng.choice(X.shape[1], size=k, replace=False)
+        tolerance = np.finfo(float).eps * max(X.shape) * np.linalg.norm(X, ord="fro")
+        residuals: list[float] = []
+        times: list[float] = []
+        basis = np.empty((X.shape[0], 0))
+
+        for idx in indices:
+            column = X[:, idx].copy()
+            for _ in range(2):
+                column -= basis @ (basis.T @ column)
+            norm = np.linalg.norm(column)
+            if norm > tolerance:
+                basis = np.column_stack((basis, column / norm))
+            residual = X - basis @ (basis.T @ X)
+            if compute_runtime:
+                times.append(time.perf_counter() - start)
+            residuals.append(float(np.linalg.norm(residual, ord="fro")))
+
+        return AlgorithmResult(
+            indices=indices,
+            residuals=np.asarray(residuals),
+            runtimes=np.asarray(times),
+            gains_bm=np.full(k, np.nan),
+            gains_as=np.full(k, np.nan),
+        )
 
     def select_index(
         self,
@@ -398,15 +451,6 @@ class Random(LowRankAlgorithm):
         n_candidates: int | None = None,
         V: np.ndarray | None = None,
         compute_alpha: bool = False,
-    ) -> tuple[int, float | None]:
-
-        column_norms = np.linalg.norm(R, axis=0)
-
-        tol = 1e-12 * np.linalg.norm(R, "fro")
-
-        candidates = np.flatnonzero(column_norms > tol)
-
-        if len(candidates) == 0:
-            raise ValueError("No column has nonzero residual energy.")
-
-        return (int(random_state.choice(candidates)), None)
+    ) -> tuple[int, None]:
+        """Sample one index uniformly; this method does not track earlier choices."""
+        return int(random_state.choice(R.shape[1])), None

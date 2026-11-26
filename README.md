@@ -239,9 +239,17 @@ Each experiment consists of
 - algorithm-specific parameter grids
 
 Parameters that are lists are expanded into every combination automatically.
-An algorithm raises an error if it selects a column with negligible residual
-energy rather than recording a no-op selection. This can occur when the
-requested rank exceeds the matrix's numerical rank.
+Algorithms other than Random raise an error if they select a column with
+negligible residual energy rather than recording a no-op selection. This can
+occur when the requested rank exceeds the matrix's numerical rank.
+
+Random Selection samples uniformly without replacement from all column indices,
+including zero or dependent columns. Each residual is recomputed from the
+original matrix using a reorthogonalized basis of the selected columns. A
+selected column whose distance from that basis is at or below
+`eps * max(X.shape) * ||X||_F` is treated as numerically dependent; such
+selections still count toward `k`. Thus `k` cannot exceed the number of columns,
+and the numerical span may have fewer than `k` directions.
 
 Algorithm names used as keys under `algorithms:`:
 
