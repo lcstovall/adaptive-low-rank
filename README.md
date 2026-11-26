@@ -342,6 +342,44 @@ algorithm and run parameters, plus:
 
 ---
 
+## Reproducing the Reported Experiments
+
+Results and figures are kept locally and are not tracked in Git. From a clean
+clone, install the package and notebook dependencies as above, and obtain the
+inputs following the [dataset instructions](./data/README.md). Synthetic inputs
+are generated automatically. The configurations in `configs/` specify the
+algorithms, parameters, and random seeds.
+
+The regenerated accuracy experiments used commit `be8af79`. In a clean
+checkout, run:
+
+```bash
+git switch --detach be8af79
+python scripts/run_all_experiments.py
+```
+
+The runtime experiment used commit `d0188b7`:
+
+```bash
+git switch --detach d0188b7
+python scripts/runtime_scaling.py --threads 1
+```
+
+Run the plotting notebooks to regenerate the figures and runtime tables. Both
+experiment commands refuse to overwrite existing results; archive them first
+when rerunning. The runtime sweep can take hours.
+
+The reported runs used Python 3.13.3, NumPy 2.5.2, SciPy 1.18.0, and
+scikit-learn 1.9.0 on macOS ARM64. The runtime sweep used verified
+single-threaded Apple Accelerate BLAS. The installation instructions do not
+pin these versions, and results and timings may vary with the environment.
+Each accuracy experiment records its matrix hash and environment in
+`metadata.json`; the runtime sweep records its arguments and environment in
+`environment.json`. In particular, the MNIST loader does not pin an OpenML
+version; see the dataset instructions for that limitation.
+
+---
+
 ## Runtime Scaling
 
 ```bash
@@ -438,6 +476,9 @@ Kevin Miller
 
 ## License
 
-This project is licensed under the MIT License. The project authors are listed
-above; the copyright notice names Luke Stovall as the copyright holder. See
-[LICENSE](./LICENSE) for the license terms.
+The project software and documentation are licensed under the MIT License. The
+project authors are listed above; the copyright notice names Luke Stovall as
+the copyright holder. See [LICENSE](./LICENSE) for the license terms.
+
+The author-generated interactions dataset is available under CC0 1.0.
+Other datasets have separate terms; see the [dataset README](./data/README.md).
